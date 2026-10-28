@@ -18,9 +18,11 @@ nonisolated enum Theme {
     static let codeBackground = named("CodeBackground")
     /// Behind `==highlighted==` text, like a marker pen.
     static let highlight = named("Highlight")
-    /// Zephydian Ink, the fixed accent.
-    static let accent = named("AccentColor")
-    static let accentSoft = named("AccentSoft")
+    /// The accent: the Mac's own accent color, or the one chosen in Settings (Zephydian Ink by default
+    /// among the fixed ones).
+    static var accent: NSColor { Preferences.accent.color }
+    /// A light wash of the accent, for selections and active buttons.
+    static var accentSoft: NSColor { accent.withAlphaComponent(0.18) }
 
     /// Colors load by name rather than through Xcode's generated symbols, which only the main thread
     /// may use: the page also draws on TextKit's own threads.
@@ -45,8 +47,8 @@ nonisolated enum Theme {
     /// The page's widest size, and the desk around it.
     static let pageMaxWidth: CGFloat = 720
     static let deskMargin = NSSize(width: 28, height: 36)
-    /// Space between the page's edges and its text (Normal margins).
-    static let pagePadding = NSSize(width: 72, height: 64)
+    /// Space between the page's edges and its text: the Margins setting sets the sides.
+    static var pagePadding: NSSize { NSSize(width: Preferences.margins.padding, height: 64) }
     /// On a narrow window the desk and padding shrink, so the text keeps a usable width.
     static let narrowWidth: CGFloat = 640
     static let narrowDeskMargin = NSSize(width: 10, height: 16)

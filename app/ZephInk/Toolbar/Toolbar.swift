@@ -184,7 +184,7 @@ private struct StyleRow: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 6).fill(isHovered || isCurrent ? Color(.accentSoft) : .clear))
+            .background(RoundedRectangle(cornerRadius: 6).fill(isHovered || isCurrent ? Color(nsColor: Theme.accentSoft) : .clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -205,7 +205,7 @@ private struct StyleRow: View {
         case .quote:
             Text(name).font(.custom("Literata", size: 14)).italic()
                 .padding(.leading, 8)
-                .overlay(alignment: .leading) { Rectangle().fill(Color(.accent)).frame(width: 2) }
+                .overlay(alignment: .leading) { Rectangle().fill(Color(nsColor: Theme.accent)).frame(width: 2) }
         case .codeBlock: Text(name).font(.custom("JetBrains Mono", size: 12))
         }
     }
@@ -225,11 +225,11 @@ private struct ToolbarButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(isOn ? Color(.accent) : Color(.ink))
+            .foregroundStyle(isOn ? Color(nsColor: Theme.accent) : Color(.ink))
             .frame(minWidth: 32, minHeight: 30)
             .padding(.horizontal, 2)
             .background(RoundedRectangle(cornerRadius: 7).fill(
-                isOn ? Color(.accentSoft) : (isHovered && !isOff) || configuration.isPressed ? Color(.hover) : .clear))
+                isOn ? Color(nsColor: Theme.accentSoft) : (isHovered && !isOff) || configuration.isPressed ? Color(.hover) : .clear))
             .contentShape(Rectangle())
             .opacity(isOff ? 0.35 : 1)
             .onHover { isHovered = $0 }
@@ -246,8 +246,8 @@ private struct MarkdownToggleStyle: ButtonStyle {
             .foregroundStyle(isOn ? Color(.page) : Color(.ink))
             .padding(.horizontal, 10)
             .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 7).fill(isOn ? Color(.accent) : Color(.page)))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(isOn ? Color(.accent) : Color(.line)))
+            .background(RoundedRectangle(cornerRadius: 7).fill(isOn ? Color(nsColor: Theme.accent) : Color(.page)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(isOn ? Color(nsColor: Theme.accent) : Color(.line)))
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
@@ -260,7 +260,7 @@ private struct ProminentButtonStyle: ButtonStyle {
             .foregroundStyle(Color(.page))
             .padding(.horizontal, 12)
             .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 7).fill(Color(.accent)))
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: Theme.accent)))
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }

@@ -7,17 +7,12 @@ enum MarkdownSymbols: String {
     /// Always visible, dimmed.
     case faded
 
-    private static let key = "markdownSymbols"
-
     static var current: MarkdownSymbols {
         get { UserDefaults.standard.string(forKey: key).flatMap(MarkdownSymbols.init) ?? .clean }
-        set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: key)
-            NotificationCenter.default.post(name: didChange, object: nil)
-        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: key) }
     }
 
-    static let didChange = Notification.Name("MarkdownSymbolsDidChange")
+    static let key = "markdownSymbols"
 }
 
 /// What a line needs drawn around its text (a quote bar, a code background, a divider, a bullet or

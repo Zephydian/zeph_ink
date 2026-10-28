@@ -139,6 +139,20 @@ Every formatting action only inserts or removes markdown characters:
 - Web images aren't loaded: the app stays offline.
 - An image in a folder not yet allowed shows a dashed "Click to show images from this folder" box.
 
+## Settings and the status bar
+
+`Preferences` reads the settings from the user defaults. The Settings window (`SettingsWindowController`, SwiftUI) writes them with `@AppStorage`, and everything else follows `UserDefaults.didChangeNotification`:
+
+- `AppDelegate` sets `NSApp.appearance` for the theme.
+- Each editor compares a `Look` (accent, margins, Clean/Faded) and restyles or moves its text only when that changed.
+- Accent colors are read live (`Theme.accent`), so fragments draw in the new color.
+- `DocumentController.defaultType` picks markdown or plain text for new documents.
+
+`StatusBar` shows the focused pane's `DocumentStats`:
+
+- Words are counted the way macOS splits text into words, so markdown symbols and link addresses don't count. The count runs a quarter second after typing pauses, and again for the selection.
+- Word-count goals are kept per file path in the defaults (`WordGoals`), never in the file.
+
 ## Theme
 
 Color tokens are light/dark pairs in `Assets.xcassets`, collected in `Editor/Theme.swift`. Theme loads them by name rather than through Xcode's generated symbols, because those can only be used on the main thread, and TextKit 2 may draw on other threads. SwiftUI views use the generated symbols (`Color(.ink)`).

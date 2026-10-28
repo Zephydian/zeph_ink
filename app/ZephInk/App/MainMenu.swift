@@ -23,6 +23,8 @@ enum MainMenu {
         let menu = NSMenu(title: "Zeph#Ink")
         menu.addItem(item("About Zeph#Ink", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
         menu.addItem(.separator())
+        menu.addItem(item("Settings…", #selector(AppDelegate.showSettings(_:)), ","))
+        menu.addItem(.separator())
         let services = NSMenu(title: "Services")
         menu.addItem(submenu(services))
         NSApp.servicesMenu = services
@@ -135,6 +137,13 @@ enum MainMenu {
             symbols.addItem(entry)
         }
         menu.addItem(submenu(symbols))
+        let margins = NSMenu(title: "Margins")
+        for value in Preferences.Margins.allCases {
+            let entry = item(value.title, #selector(AppDelegate.setMargins(_:)))
+            entry.representedObject = value.rawValue
+            margins.addItem(entry)
+        }
+        menu.addItem(submenu(margins))
         menu.addItem(.separator())
         menu.addItem(item("Split Right", #selector(WorkspaceWindowController.splitRight(_:)), "\\"))
         menu.addItem(item("Close Split", #selector(WorkspaceWindowController.closeSplit(_:))))

@@ -6,6 +6,11 @@ import AppKit
 ///
 /// Closing a tab or a window still asks about unsaved untitled documents, like any Mac app.
 final class DocumentController: NSDocumentController {
+    /// New documents are markdown, or plain text if Settings says so.
+    override var defaultType: String? {
+        Preferences.defaultType == .plainText ? MarkdownDocument.plainTextType : MarkdownDocument.markdownType
+    }
+
     override func reviewUnsavedDocuments(withAlertTitle title: String?, cancellable: Bool, delegate: Any?,
                                          didReviewAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
         let edited = documents.filter(\.isDocumentEdited)

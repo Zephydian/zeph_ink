@@ -33,6 +33,12 @@ final class ZephTextView: NSTextView {
         }
     }
 
+    /// The margins changed: move the text inside the page.
+    func pageMetricsDidChange() {
+        updateTextInset()
+        needsDisplay = true
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         updateTextInset()

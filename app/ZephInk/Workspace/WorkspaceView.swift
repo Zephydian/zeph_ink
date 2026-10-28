@@ -6,6 +6,8 @@ struct WorkspaceView: View {
     let workspace: Workspace
     let controller: WorkspaceWindowController
     @AppStorage(Toolbar.isShownKey) private var showsToolbar = true
+    /// Read so the toolbar redraws in a new accent color.
+    @AppStorage(Preferences.Key.accent) private var accent = Preferences.Accent.system.rawValue
 
     var body: some View {
         GeometryReader { proxy in
@@ -14,12 +16,17 @@ struct WorkspaceView: View {
                 Rectangle().fill(Color(.line)).frame(height: 1)
                 if showsToolbar, let tab = workspace.selectedTab {
                     Toolbar(editor: tab.editor, controller: controller)
+                        .id(accent)
                     Rectangle().fill(Color(.line)).frame(height: 1)
                 }
                 if workspace.panes.isEmpty {
                     Color(.desk)
                 } else {
                     PaneSplitRepresentable(splitView: controller.splitView, panes: panes, focused: workspace.focusedPaneID)
+                }
+                if let tab = workspace.selectedTab {
+                    Rectangle().fill(Color(.line)).frame(height: 1)
+                    StatusBar(document: tab.document, stats: tab.editor.stats)
                 }
             }
             .ignoresSafeArea(edges: .top)

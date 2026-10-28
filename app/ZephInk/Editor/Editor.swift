@@ -24,6 +24,8 @@ final class Editor: NSObject {
     var didBecomeFocused: (() -> Void)?
     /// The styles at the selection, for the toolbar and the Format menu.
     let formatting = FormattingState()
+    /// Words and characters, for the status bar.
+    let stats = DocumentStats()
 
     /// The folder the document is saved in (images are found relative to it).
     var documentFolder: URL? { document?.fileURL?.deletingLastPathComponent() }
@@ -142,8 +144,11 @@ final class Editor: NSObject {
         scrollView.contentView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(clipViewDidResize),
                                                name: NSView.frameDidChangeNotification, object: scrollView.contentView)
-        NotificationCenter.default.addObserver(self, selector: #selector(symbolsDidChange),
-                                               name: MarkdownSymbols.didChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(preferencesDidChange),
+                                               name: UserDefaults.didChangeNotification, object: nil)
+        appliedLook = Look.current
+        stats.count(storage.string)
+        stats.goal = WordGoals.goal(for: document.fileURL)
         restyleAll()
     }
 
@@ -267,10 +272,32 @@ final class Editor: NSObject {
         storage.endEditing()
     }
 
-    @objc private func symbolsDidChange() {
-        guard !isSourceMode else { return }
-        restyleAll()
+    /// The settings the page's look depends on, to tell which one changed.
+    private struct Look: Equatable {
+        var accent: Preferences.Accent
+        var margins: Preferences.Margins
+        var symbols: MarkdownSymbols
+
+        static var current: Look { Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current) }
     }
+
+    private var appliedLook: Look?
+
+    /// A setting changed (from the Settings window, or a menu): follow it.
+    @objc private func preferencesDidChange() {
+        let look = Look.current
+        guard look != appliedLook else { return }
+        let old = appliedLook
+        appliedLook = look
+        if look.margins != old?.margins { textView.pageMetricsDidChange() }
+        if look.accent != old?.accent || look.symbols != old?.symbols {
+            textView.insertionPointColor = Theme.accent
+            textView.selectedTextAttributes = [.backgroundColor: Theme.accentSoft]
+            if !isSourceMode && !isPlainText { restyleAll() }
+            textView.needsDisplay = true
+        }
+    }
+
 
     @objc private func clipViewDidResize() {
         let height = scrollView.contentSize.height
@@ -299,6 +326,7 @@ extension Editor: NSTextStorageDelegate {
                      range editedRange: NSRange, changeInLength delta: Int) {
         guard editedMask.contains(.editedCharacters) else { return }
         restyle(afterEditing: editedRange, changeInLength: delta)
+        stats.textDidChange { [storage] in storage.string }
     }
 }
 
@@ -306,6 +334,8 @@ extension Editor: NSTextViewDelegate {
     func textViewDidChangeSelection(_ notification: Notification) {
         updateRevealedLines()
         formatting.update(text: storage.string as NSString, selection: textView.selectedRange(), analysis: analysis)
+        let selected = textView.selectedRange()
+        stats.selectionDidChange(selected.length > 0 ? (storage.string as NSString).substring(with: selected) : nil)
         let selection = textView.selectedRange()
         if selection.length == 0, !analysis.lines.isEmpty {
             let line = analysis.lines[analysis.lineIndex(at: selection.location)]

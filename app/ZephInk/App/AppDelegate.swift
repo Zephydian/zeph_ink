@@ -13,7 +13,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Reopens the windows, tabs and splits that were open last time, before any file the app was
     /// asked to open joins them.
     func applicationWillFinishLaunching(_ notification: Notification) {
+        applyTheme()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyTheme),
+                                               name: UserDefaults.didChangeNotification, object: nil)
         restoredSession = Session.load()?.restore() ?? false
+    }
+
+    /// Light, dark, or following the Mac (Settings → Theme).
+    @objc private func applyTheme() {
+        let appearance = Preferences.theme.appearance
+        if NSApp.appearance != appearance { NSApp.appearance = appearance }
+    }
+
+    /// Zeph#Ink → Settings… (⌘,), and the gear in the status bar.
+    @objc func showSettings(_ sender: Any?) {
+        SettingsWindowController.shared.showWindow(nil)
+        SettingsWindowController.shared.window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// View → Margins → Narrow, Normal or Wide.
+    @objc func setMargins(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let margins = Preferences.Margins(rawValue: raw) else { return }
+        Preferences.set(margins, for: Preferences.Key.margins)
     }
 
     /// Quitting: saves the session before the windows close (closing them would otherwise save an
@@ -45,6 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(setMargins(_:)) {
+            menuItem.state = menuItem.representedObject as? String == Preferences.margins.rawValue ? .on : .off
+        }
         if menuItem.action == #selector(toggleToolbar(_:)) {
             menuItem.title = Toolbar.isShown ? "Hide Toolbar" : "Show Toolbar"
         }
