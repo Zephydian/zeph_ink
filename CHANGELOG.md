@@ -26,6 +26,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Images: add them from the toolbar or by dropping them on the page. They're copied into an "assets" folder next to the document and shown on the page. Zeph#Ink asks once per folder for permission.
 - In `.txt` files, the formatting tools are dimmed and a Convert to Markdown button appears.
 - Highlight (`==text==`, ⌘⇧H), Clear Formatting, and toolbar buttons for undo, redo and the emoji picker.
-- Align paragraphs left, center or right (⌘{ ⌘| ⌘}). Markdown has no alignment, so center and right are saved as `<div align="center">` around the paragraph, which GitHub and many apps show centered.
+- Align lines left, center or right (⌘{ ⌘| ⌘}), each line on its own. Markdown has no alignment, so center and right are saved as `<div align="center">` around the lines, which GitHub and many apps show centered.
 - Pressing Return inside bold, italic or other styles closes them, so the new line starts plain.
 - Pressing Return on an empty line at the end of centered or right-aligned text steps out of it, so the next line starts on the left.

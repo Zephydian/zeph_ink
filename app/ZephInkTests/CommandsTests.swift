@@ -181,8 +181,8 @@ struct CommandsTests {
 
     @Test func centeringWrapsTheParagraphInHTML() {
         #expect(run("Hel|lo", align(.center)) == "<div align=\"center\">\n\nHel|lo\n\n</div>")
-        #expect(run("a\n\nb|c\nd\n\ne", align(.center)) == "a\n\n<div align=\"center\">\n\nb|c\nd\n\n</div>\n\ne")
-        #expect(run("a|\nnext", align(.right)) == "<div align=\"right\">\n\na|\nnext\n\n</div>")
+        #expect(run("a\n\nb|c\nd\n\ne", align(.center)) == "a\n\n<div align=\"center\">\n\nb|c\n\n</div>\n\nd\n\ne")
+        #expect(run("a|\nnext", align(.right)) == "<div align=\"right\">\n\na|\n\n</div>\n\nnext")
     }
 
     @Test func alignmentChangesOrComesOff() {
@@ -200,6 +200,19 @@ struct CommandsTests {
         #expect(lines[2].alignment == .center)
         #expect(lines[4].kind == .alignTag)
         #expect(lines[6].alignment == nil)
+    }
+
+    @Test func eachLineKeepsItsOwnAlignment() {
+        // Lines typed with a single Return are one markdown paragraph, but align one by one.
+        #expect(run("one\ntw|o\nthree", align(.center))
+                == "one\n\n<div align=\"center\">\n\ntw|o\n\n</div>\n\nthree")
+        let both = "<div align=\"center\">\n\none\ntw|o\n\n</div>"
+        #expect(run(both, align(.left)) == "<div align=\"center\">\n\none\n\n</div>\n\ntw|o")
+        #expect(run(both, align(.right))
+                == "<div align=\"center\">\n\none\n\n</div>\n\n<div align=\"right\">\n\ntw|o\n\n</div>")
+        let three = "<div align=\"center\">\n\none\ntw|o\nthree\n\n</div>"
+        #expect(run(three, align(.left))
+                == "<div align=\"center\">\n\none\n\n</div>\n\ntw|o\n\n<div align=\"center\">\n\nthree\n\n</div>")
     }
 
     @Test func leftWorksFromTheHiddenTagLines() {

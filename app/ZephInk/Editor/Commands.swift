@@ -142,68 +142,80 @@ nonisolated enum MarkdownCommands {
         return analysis.lines[analysis.lineIndex(at: location)].alignment ?? .left
     }
 
-    /// Aligns the paragraph the selection is in. Markdown has no alignment, so center and right wrap
-    /// the paragraph in `<div align="…">` with blank lines around it (the form GitHub and others
-    /// render), and left takes the wrapper away. Inside an aligned region it changes the region.
+    /// Aligns the selected lines (or the cursor's line), leaving the lines around them as they were.
+    /// Markdown has no alignment, so center and right wrap lines in `<div align="…">` with blank lines
+    /// inside it (the form GitHub and others render), and left takes them out. Changing some lines of
+    /// an aligned block splits the block, so its other lines keep their alignment.
     static func setAlignment(_ alignment: Alignment, text: NSString, selection: NSRange, analysis: MarkdownAnalysis,
                              lineBreak: String) -> Result {
         let lines = analysis.lines
         guard !lines.isEmpty else { return Result(edits: [], selection: selection) }
-        var first = analysis.lineIndex(at: selection.location)
-        var last = analysis.lineIndex(at: NSMaxRange(selection))
-        let tag = "<div align=\"\(alignment.rawValue)\">"
+        let firstSelected = analysis.lineIndex(at: selection.location)
+        let lastSelected = analysis.lineIndex(at: NSMaxRange(selection))
 
-        if let (opening, closing) = alignedRegion(around: first, in: analysis) {
-            if alignment != .left {
-                let delta = (tag as NSString).length - lines[opening].range.length
-                return Result(edits: [Edit(range: lines[opening].range, replacement: tag)],
-                              selection: NSRange(location: selection.location + delta, length: selection.length))
+        // The lines to rewrite: a whole aligned block when the selection is in one, else the selection.
+        var first = firstSelected, last = lastSelected
+        var selected = Set(firstSelected...lastSelected)
+        if let (opening, closing) = alignedRegion(around: firstSelected, in: analysis) {
+            first = opening
+            last = max(closing, alignedRegion(around: lastSelected, in: analysis)?.closing ?? closing)
+            // On a tag or a blank line of the block: the whole block.
+            if (firstSelected...lastSelected).allSatisfy({ lines[$0].kind == .alignTag || lines[$0].kind == .blank }) {
+                selected = Set(first...last)
             }
-            // Left: remove the tags and the blank lines just inside them.
-            var removeTop = lines[opening].fullRange
-            if opening + 1 < closing, lines[opening + 1].kind == .blank {
-                removeTop.length += lines[opening + 1].fullRange.length
+        } else if let region = alignedRegion(around: lastSelected, in: analysis) {
+            last = region.closing
+        }
+
+        // Each line with text, and the alignment it should end up with.
+        struct Item { var index: Int; var alignment: Alignment }
+        var items: [Item] = []
+        for index in first...last where lines[index].kind != .alignTag {
+            let current = lines[index].alignment ?? .left
+            items.append(Item(index: index, alignment: selected.contains(index) && lines[index].kind != .blank ? alignment : current))
+        }
+        // Blank lines go with the run they sit in; at a change of alignment they're dropped.
+        var runs: [(alignment: Alignment, items: [Item])] = []
+        for item in items {
+            if lines[item.index].kind == .blank {
+                if let last = runs.last, !last.items.isEmpty { runs[runs.count - 1].items.append(item) }
+                continue
             }
-            var removeBottom = lines[closing].fullRange
-            if closing - 1 > opening, lines[closing - 1].kind == .blank {
-                removeBottom = NSRange(location: lines[closing - 1].fullRange.location,
-                                       length: NSMaxRange(lines[closing].fullRange) - lines[closing - 1].fullRange.location)
-            }
-            if NSMaxRange(removeBottom) == text.length, removeBottom.location > 0 {
-                // The last line of the file: take the line break before it instead of after.
-                let previous = lines[max(closing - (lines[closing - 1].kind == .blank ? 2 : 1), 0)]
-                removeBottom = NSRange(location: NSMaxRange(previous.range), length: text.length - NSMaxRange(previous.range))
-            }
-            // A cursor inside removed text moves to where that text was.
-            func map(_ position: Int) -> Int {
-                var mapped = position
-                for removed in [removeTop, removeBottom] {
-                    if position >= NSMaxRange(removed) { mapped -= removed.length }
-                    else if position > removed.location { mapped -= position - removed.location }
+            if runs.last?.alignment == item.alignment { runs[runs.count - 1].items.append(item) }
+            else { runs.append((item.alignment, [item])) }
+        }
+        guard !runs.isEmpty else { return Result(edits: [], selection: selection) }
+
+        var output = ""
+        var cursor: Int?
+        let blank = lineBreak + lineBreak
+        for (number, run) in runs.enumerated() {
+            var body = run.items
+            while let last = body.last, lines[last.index].kind == .blank { body.removeLast() }
+            if number > 0 { output += blank }
+            if run.alignment != .left { output += "<div align=\"\(run.alignment.rawValue)\">" + blank }
+            for (position, item) in body.enumerated() {
+                if position > 0 { output += lineBreak }
+                let range = lines[item.index].range
+                if cursor == nil, selection.location >= range.location, selection.location <= NSMaxRange(range) {
+                    cursor = (output as NSString).length + selection.location - range.location
                 }
-                return mapped
+                output += text.substring(with: range)
             }
-            let start = map(selection.location), end = map(NSMaxRange(selection))
-            return Result(edits: [Edit(range: removeBottom, replacement: ""), Edit(range: removeTop, replacement: "")],
-                          selection: NSRange(location: start, length: max(end - start, 0)))
+            if run.alignment != .left { output += blank + "</div>" }
         }
-
-        guard alignment != .left else { return Result(edits: [], selection: selection) }
-        // The paragraph: the selected lines and the non-blank lines around them.
-        func isText(_ index: Int) -> Bool {
-            switch lines[index].kind { case .blank, .alignTag, .code: false; default: true }
-        }
-        guard isText(first) || isText(last) else {
-            return Result(edits: [], selection: selection)
-        }
-        while first > 0, isText(first - 1) { first -= 1 }
-        while last + 1 < lines.count, isText(last + 1) { last += 1 }
-        let opening = tag + lineBreak + lineBreak
-        let needsBlankAfter = last + 1 < lines.count && lines[last + 1].kind != .blank
-        let closing = lineBreak + lineBreak + "</div>" + (needsBlankAfter ? lineBreak : "")
-        return Result(edits: [Edit(range: NSRange(location: NSMaxRange(lines[last].range), length: 0), replacement: closing),
-                              Edit(range: NSRange(location: lines[first].fullRange.location, length: 0), replacement: opening)],
-                      selection: NSRange(location: selection.location + (opening as NSString).length, length: selection.length))
+        // Keep a blank line between an aligned block and text right next to it.
+        let replaced = NSRange(location: lines[first].fullRange.location, length: NSMaxRange(lines[last].range) - lines[first].fullRange.location)
+        var prefix = "", suffix = ""
+        if runs.first?.alignment != .left, first > 0, lines[first - 1].kind != .blank { prefix = lineBreak }
+        if runs.last?.alignment != .left, last + 1 < lines.count, lines[last + 1].kind != .blank { suffix = lineBreak }
+        let replacement = prefix + output + suffix
+        guard replacement != text.substring(with: replaced) else { return Result(edits: [], selection: selection) }
+        // A cursor that was on a tag or blank line goes to the start, or the end if it was after the text.
+        let firstText = items.first { lines[$0.index].kind != .blank }.map { lines[$0.index].range.location } ?? 0
+        let fallback = selection.location <= firstText ? 0 : (output as NSString).length
+        let location = replaced.location + (prefix as NSString).length + (cursor ?? fallback)
+        return Result(edits: [Edit(range: replaced, replacement: replacement)], selection: NSRange(location: location, length: 0))
     }
 
     // MARK: - Return inside a style

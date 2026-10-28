@@ -64,6 +64,22 @@ struct EditorTests {
         #expect(font(at: text.range(of: "<div").location, in: document)?.pointSize == Fonts.hidden.pointSize)
     }
 
+    @Test func centeringOneLineLeavesItsNeighboursAlone() throws {
+        let (document, editor) = try editor("one\ntwo\nthree")
+        func alignment(of word: String) -> NSTextAlignment? {
+            let text = document.storage.string as NSString
+            return (document.storage.attribute(.paragraphStyle, at: text.range(of: word).location, effectiveRange: nil) as? NSParagraphStyle)?.alignment
+        }
+        editor.textView.setSelectedRange(NSRange(location: 5, length: 0))
+        editor.textView.alignCenter(nil)
+        #expect(alignment(of: "two") == .center)
+        #expect(alignment(of: "one") != .center)
+        #expect(alignment(of: "three") != .center)
+        editor.textView.alignLeft(nil)
+        #expect(alignment(of: "two") != .center)
+        #expect(!document.storage.string.contains("<div"))
+    }
+
     @Test func fadedModeAlwaysShowsSymbols() throws {
         let previous = MarkdownSymbols.current
         defer { MarkdownSymbols.current = previous }

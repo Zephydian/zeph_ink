@@ -121,11 +121,11 @@ Every formatting action only inserts or removes markdown characters:
 
 **Highlight** (`==text==`) isn't standard markdown, so swift-markdown leaves it as text. `MarkdownAnalysis` finds it with a pattern on text lines, outside code spans, and adds the same spans and markers as for bold. **Clear Formatting** removes the selected lines' block markers and every inline marker inside the selection.
 
-**Alignment.** Markdown has no alignment, so center and right are saved as HTML around the paragraph, in the form GitHub renders: `<div align="center">`, a blank line, the paragraph, a blank line, `</div>`.
+**Alignment.** Markdown has no alignment, so center and right are saved as HTML around the selected lines (lines typed with a single Return are one markdown paragraph, but align one by one), in the form GitHub renders: `<div align="center">`, a blank line, the paragraph, a blank line, `</div>`.
 
 - `MarkdownAnalysis` marks the tag lines (`.alignTag`, symbols that hide in Clean mode, along with the blank lines inside) and gives the lines between them their alignment.
 - Editing inside an aligned region always re-parses the whole text, because the tags may be outside the edited blocks.
-- Align Left removes the wrapper. Format → Align Left / Center / Align Right (⌘{ ⌘| ⌘}) override NSText's own alignment actions to write this markdown.
+- Changing some lines of an aligned block splits it, so the others keep their alignment. Align Left takes lines out of the wrapper. Format → Align Left / Center / Align Right (⌘{ ⌘| ⌘}) override NSText's own alignment actions to write this markdown.
 
 **Return inside a style** (`*hel|lo*`): `MarkdownCommands.closeInlineStyles` closes the styles at the cursor before the line break, so the new line starts plain. swift-markdown reports one range for directly nested styles (`***both***`), so bold, italic and strikethrough take their ranges from their delimiter characters, and a nested style takes its parent's inside.
 
