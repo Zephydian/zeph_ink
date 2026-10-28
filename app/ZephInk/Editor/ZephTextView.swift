@@ -144,8 +144,21 @@ final class ZephTextView: NSTextView {
         return last == 0x0D ? 1 : 0
     }
 
-    /// Return in a list item starts the next item. Return in an empty item ends the list.
+    /// Return in a list item starts the next item. Return in an empty item ends the list. Return inside
+    /// bold, italic and the like closes them first, so the new line starts plain.
     override func insertNewline(_ sender: Any?) {
+        if editor?.handlesMarkdownInput == true, selectedRange().length == 0, let editor,
+           let closed = MarkdownCommands.closeInlineStyles(at: selectedRange().location, text: string as NSString, analysis: editor.analysis) {
+            undoManager?.beginUndoGrouping()
+            apply(closed)
+            breakLine()
+            undoManager?.endUndoGrouping()
+            return
+        }
+        breakLine()
+    }
+
+    private func breakLine() {
         let selection = selectedRange()
         guard editor?.handlesMarkdownInput == true, let item = listLine(at: selection.location),
               selection.location >= item.contentStart else {

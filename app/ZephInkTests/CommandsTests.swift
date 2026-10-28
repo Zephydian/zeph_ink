@@ -158,4 +158,18 @@ struct CommandsTests {
         #expect(run("## A **bo|ld** [link](https://x.com)", clear) == "A bo|ld link")
         #expect(run("- [one *two*\n> three]", clear) == "[one two\nthree]")
     }
+
+    // MARK: Return inside a style
+
+    @Test func returnInsideAStyleClosesItAtTheCursor() {
+        let close: (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result = { text, selection, analysis in
+            MarkdownCommands.closeInlineStyles(at: selection.location, text: text, analysis: analysis)
+                ?? .init(edits: [], selection: selection)
+        }
+        #expect(run("*hello|*", close) == "*hello*|")
+        #expect(run("say *hel|lo* now", close) == "say *hel*|lo now")
+        #expect(run("**|bold**", close) == "|bold")
+        #expect(run("***both|***", close) == "***both***|")
+        #expect(run("plain| text", close) == "plain| text")
+    }
 }

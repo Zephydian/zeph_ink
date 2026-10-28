@@ -91,6 +91,49 @@ nonisolated enum MarkdownCommands {
                       selection: NSRange(location: trimmed.location + length, length: trimmed.length))
     }
 
+    // MARK: - Return inside a style
+
+    /// Return pressed inside bold, italic and the like: closes each style at the cursor, so the text
+    /// before it keeps its look and the text after it starts plain. (`*hel|lo*` becomes `*hel*|lo`, and
+    /// `*hello|*` becomes `*hello*|`.) A style the cursor is at the very start of comes off entirely.
+    /// Returns nil when the cursor isn't inside a style on its line.
+    static func closeInlineStyles(at cursor: Int, text: NSString, analysis: MarkdownAnalysis) -> Result? {
+        let line = lines(touching: NSRange(location: cursor, length: 0), in: text)[0]
+        var closers: [(opening: NSRange, closing: NSRange)] = []
+        for inline in Inline.allCases {
+            guard let (content, opening, closing) = span(of: inline, at: NSRange(location: cursor, length: 0), in: text, analysis: analysis),
+                  cursor >= content.location, cursor <= NSMaxRange(content),
+                  opening.location >= line.location, NSMaxRange(closing) <= NSMaxRange(line) else { continue }
+            closers.append((opening, closing))
+        }
+        guard !closers.isEmpty else { return nil }
+        var deleted: [NSRange] = []
+        var insertion = ""
+        // Innermost first: the style that opened last closes first.
+        for (opening, closing) in closers.sorted(by: { $0.opening.location > $1.opening.location }) {
+            deleted.append(closing)
+            if NSMaxRange(opening) == cursor {
+                deleted.append(opening)   // nothing styled before the cursor: drop the style
+            } else {
+                insertion += text.substring(with: closing)
+            }
+        }
+        func keep(_ range: NSRange) -> String {
+            var result = ""
+            var position = range.location
+            for cut in deleted.sorted(by: { $0.location < $1.location }) where cut.location >= range.location && NSMaxRange(cut) <= NSMaxRange(range) {
+                if cut.location > position { result += text.substring(with: NSRange(location: position, length: cut.location - position)) }
+                position = max(position, NSMaxRange(cut))
+            }
+            if NSMaxRange(range) > position { result += text.substring(with: NSRange(location: position, length: NSMaxRange(range) - position)) }
+            return result
+        }
+        let before = keep(NSRange(location: line.location, length: cursor - line.location)) + insertion
+        let after = keep(NSRange(location: cursor, length: NSMaxRange(line) - cursor))
+        return Result(edits: [Edit(range: line, replacement: before + after)],
+                      selection: NSRange(location: line.location + (before as NSString).length, length: 0))
+    }
+
     // MARK: - Clearing
 
     /// Takes the markdown off the selected lines (or the line the cursor is on): heading, quote and

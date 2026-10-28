@@ -44,6 +44,13 @@ struct MarkdownAnalysisTests {
         #expect(spans(.marker, in: source) == ["**", "**", "*", "*", "~~", "~~", "`", "`", "[", "](https://zephydian.com)"])
     }
 
+    @Test func nestedStylesFindTheirOwnSymbols() {
+        let source = "***both***\n"
+        #expect(spans(.strong, in: source).contains("both") || spans(.emphasis, in: source).contains("both"))
+        #expect(spans(.marker, in: source).joined() == "******")
+        #expect(MarkdownAnalysis(source).spans.filter { $0.style == .marker }.allSatisfy { $0.range.length <= 2 })
+    }
+
     @Test func positionsAfterWideCharacters() {
         let source = "日本 🖋️ **bold**\n"
         #expect(spans(.strong, in: source) == ["bold"])

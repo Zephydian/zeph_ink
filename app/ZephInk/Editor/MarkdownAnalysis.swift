@@ -208,8 +208,10 @@ nonisolated private struct Builder {
         self.lines = lines
     }
 
-    mutating func visit(_ node: Markup, block: Int, quoteDepth: Int) {
-        guard let range = map.range(node.range) else { return }
+    /// `actualRange` corrects the parser's range for a style nested directly in another: it reports
+    /// the same range for both in `***both***`.
+    mutating func visit(_ node: Markup, block: Int, quoteDepth: Int, actualRange: NSRange? = nil) {
+        guard let range = actualRange ?? map.range(node.range) else { return }
         let lineSpan = map.lineSpan(node.range)
         for line in lineSpan { lines[line].block = block }
 
@@ -230,12 +232,23 @@ nonisolated private struct Builder {
             for line in lineSpan { lines[line].quoteDepth = max(lines[line].quoteDepth, quoteDepth + 1) }
         case let item as ListItem:
             markListItem(item, at: range.location, line: lineSpan.lowerBound)
-        case is Strong:
-            addDelimited(node, range: range, style: .strong)
-        case is Emphasis:
-            addDelimited(node, range: range, style: .emphasis)
-        case is Strikethrough:
-            addDelimited(node, range: range, style: .strikethrough)
+        case is Strong, is Emphasis, is Strikethrough:
+            // Their symbols are a known number of characters at each end, which is surer than the
+            // parser's ranges for nested styles.
+            let content = delimitedContent(node, range: range)
+            let style: MarkdownAnalysis.InlineStyle = node is Strong ? .strong : node is Emphasis ? .emphasis : .strikethrough
+            spans.append(.init(range: content, style: style))
+            spans.append(.init(range: NSRange(location: range.location, length: content.location - range.location), style: .marker))
+            spans.append(.init(range: NSRange(location: NSMaxRange(content), length: NSMaxRange(range) - NSMaxRange(content)), style: .marker))
+            let childDepth = quoteDepth
+            for child in node.children {
+                let reported = map.range(child.range)
+                let isNestedStyle = child is Strong || child is Emphasis || child is Strikethrough
+                let fixed = isNestedStyle && (reported == nil || reported == range || NSIntersectionRange(reported!, content).length != reported!.length)
+                    ? content : nil
+                visit(child, block: block, quoteDepth: childDepth, actualRange: fixed)
+            }
+            return
         case is InlineCode:
             spans.append(.init(range: range, style: .code))
             let ticks = backticks(at: range.location, limit: range.length / 2)
@@ -255,6 +268,15 @@ nonisolated private struct Builder {
         for child in node.children {
             visit(child, block: block, quoteDepth: childDepth)
         }
+    }
+
+    /// The text inside a bold, italic or strikethrough run: its range without the symbols at each end
+    /// (`**`, `*` or `_`, `~~` or `~`).
+    private func delimitedContent(_ node: Markup, range: NSRange) -> NSRange {
+        var length = node is Strong ? 2 : 1
+        if node is Strikethrough, range.length >= 4, text.character(at: range.location + 1) == 0x7E { length = 2 }   // "~~"
+        guard range.length >= length * 2 else { return NSRange(location: range.location, length: 0) }
+        return NSRange(location: range.location + length, length: range.length - length * 2)
     }
 
     /// Styles a run like `**bold**` or `[text](url)`: the whole run gets the style, and whatever
