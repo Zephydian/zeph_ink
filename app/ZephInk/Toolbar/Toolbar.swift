@@ -64,7 +64,7 @@ struct Toolbar: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 46)
-        .background(Color(.chrome))
+        .background(Color(nsColor: Theme.chrome))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Formatting")
     }
@@ -139,16 +139,16 @@ private struct StyleMenuButton: View {
             HStack {
                 Text(current).font(.system(size: 13))
                 Spacer(minLength: 6)
-                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color(.inkSecondary))
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color(nsColor: Theme.chromeInkSecondary))
             }
             .padding(.horizontal, 10)
             .frame(width: 148, height: 30)
-            .background(RoundedRectangle(cornerRadius: 7).fill(Color(.page)))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(.line)))
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: Theme.chromeSurface)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(nsColor: Theme.chromeLine)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color(.ink))
+        .foregroundStyle(Color(nsColor: Theme.chromeInk))
         .opacity(isOff ? 0.35 : 1)
         .help(isOff ? "Formatting is available in Markdown documents. Convert this file to use it." : "Paragraph style — ⌘0 to ⌘4")
         .accessibilityLabel("Paragraph style, \(current)")
@@ -180,7 +180,7 @@ private struct StyleRow: View {
             HStack(alignment: .firstTextBaseline) {
                 preview
                 Spacer()
-                Text(shortcut).font(.custom("JetBrains Mono", size: 11)).foregroundStyle(Color(.inkSecondary))
+                Text(shortcut).font(.custom("JetBrains Mono", size: 11)).foregroundStyle(Color(nsColor: Theme.chromeInkSecondary))
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -188,7 +188,7 @@ private struct StyleRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color(.ink))
+        .foregroundStyle(Color(nsColor: Theme.chromeInk))
         .onHover { isHovered = $0 }
         .accessibilityLabel(name)
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
@@ -213,7 +213,7 @@ private struct StyleRow: View {
 
 private struct Separator: View {
     var body: some View {
-        Rectangle().fill(Color(.line)).frame(width: 1, height: 20).padding(.horizontal, 6)
+        Rectangle().fill(Color(nsColor: Theme.chromeLine)).frame(width: 1, height: 20).padding(.horizontal, 6)
     }
 }
 
@@ -225,11 +225,11 @@ private struct ToolbarButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(isOn ? Color(nsColor: Theme.accent) : Color(.ink))
+            .foregroundStyle(isOn ? Color(nsColor: Theme.accent) : Color(nsColor: Theme.chromeInk))
             .frame(minWidth: 32, minHeight: 30)
             .padding(.horizontal, 2)
             .background(RoundedRectangle(cornerRadius: 7).fill(
-                isOn ? Color(nsColor: Theme.accentSoft) : (isHovered && !isOff) || configuration.isPressed ? Color(.hover) : .clear))
+                isOn ? Color(nsColor: Theme.accentSoft) : (isHovered && !isOff) || configuration.isPressed ? Color(nsColor: Theme.hover) : .clear))
             .contentShape(Rectangle())
             .opacity(isOff ? 0.35 : 1)
             .onHover { isHovered = $0 }
@@ -243,11 +243,11 @@ private struct MarkdownToggleStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.custom("JetBrains Mono", size: 12).weight(.medium))
-            .foregroundStyle(isOn ? Color(.page) : Color(.ink))
+            .foregroundStyle(isOn ? Color(nsColor: Theme.chromeSurface) : Color(nsColor: Theme.chromeInk))
             .padding(.horizontal, 10)
             .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 7).fill(isOn ? Color(nsColor: Theme.accent) : Color(.page)))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(isOn ? Color(nsColor: Theme.accent) : Color(.line)))
+            .background(RoundedRectangle(cornerRadius: 7).fill(isOn ? Color(nsColor: Theme.accent) : Color(nsColor: Theme.chromeSurface)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(isOn ? Color(nsColor: Theme.accent) : Color(nsColor: Theme.chromeLine)))
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
@@ -257,7 +257,7 @@ private struct ProminentButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color(.page))
+            .foregroundStyle(Color(nsColor: Theme.chromeSurface))
             .padding(.horizontal, 12)
             .frame(height: 30)
             .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: Theme.accent)))

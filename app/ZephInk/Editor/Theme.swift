@@ -1,43 +1,125 @@
 import AppKit
 
-/// Colors, type and spacing. Every color is a light/dark pair in `Assets.xcassets`.
+/// Colors, type and spacing.
+///
+/// Colors come from the theme (Settings → Theme): Light, Sepia, Dark or Midnight, or System, which is
+/// Light or Dark with the Mac. Each color is resolved when it's drawn, so changing the theme only
+/// needs a redraw. The window's chrome (tabs, toolbar, status bar, desk) always follows the theme;
+/// the page's own colors do too, unless White Page keeps the page white in a darker theme.
 nonisolated enum Theme {
-    // MARK: Colors
+    // MARK: Chrome colors
 
     /// The title bar, tab bar, toolbar and status bar.
-    static let chrome = named("Chrome")
+    static let chrome = chromeColor(\.chrome)
+    /// Text and icons on the chrome.
+    static let chromeInk = chromeColor(\.ink)
+    static let chromeInkSecondary = chromeColor(\.inkSecondary)
+    static let chromeMarker = chromeColor(\.marker)
+    /// Lines between parts of the window.
+    static let chromeLine = chromeColor(\.line)
+    /// Raised surfaces on the chrome: the selected tab, the style menu button.
+    static let chromeSurface = chromeColor(\.page)
+    static let hover = chromeColor(\.hover)
     /// Behind the page.
-    static let desk = named("Desk")
-    static let page = named("Page")
-    static let ink = named("Ink")
-    static let inkSecondary = named("InkSecondary")
-    /// Markdown symbols when they're shown faded.
-    static let marker = named("Marker")
-    static let line = named("Line")
-    static let hover = named("Hover")
-    static let codeBackground = named("CodeBackground")
+    static let desk = chromeColor(\.desk)
+
+    // MARK: Page colors
+
+    static let page = pageColor(\.page)
+    static let ink = pageColor(\.ink)
+    static let inkSecondary = pageColor(\.inkSecondary)
+    /// Markdown symbols when they're shown faded (stronger with Increase Contrast on).
+    static let marker = NSColor(name: nil) { appearance in
+        let palette = usesWhitePage(for: appearance) ? Palette.light : palette(for: appearance)
+        return Preferences.increaseContrast ? palette.inkSecondary : palette.marker
+    }
+    /// Lines on the page: dividers.
+    static let rule = pageColor(\.line)
+    static let codeBackground = pageColor(\.code)
     /// Behind `==highlighted==` text, like a marker pen.
-    static let highlight = named("Highlight")
-    /// The accent: the Mac's own accent color, or the one chosen in Settings (Zephydian Ink by default
-    /// among the fixed ones).
+    static let highlight = pageColor(\.highlight)
+
+    /// The accent: the Mac's own accent color, or the one chosen in Settings.
     static var accent: NSColor { Preferences.accent.color }
     /// A light wash of the accent, for selections and active buttons.
     static var accentSoft: NSColor { accent.withAlphaComponent(0.18) }
+    /// The accent as it should look on the page: its light version on a white page in a dark theme.
+    static let pageAccent = NSColor(name: nil) { appearance in
+        let look = usesWhitePage(for: appearance) ? NSAppearance(named: .aqua) ?? appearance : appearance
+        var resolved = NSColor.systemBlue
+        look.performAsCurrentDrawingAppearance { resolved = accent.usingColorSpace(.sRGB) ?? accent }
+        return resolved
+    }
 
-    /// Colors load by name rather than through Xcode's generated symbols, which only the main thread
-    /// may use: the page also draws on TextKit's own threads.
-    private static func named(_ name: String) -> NSColor {
-        NSColor(named: name) ?? .textColor
+    // MARK: Palettes
+
+    /// One theme's colors.
+    struct Palette {
+        var chrome, desk, page, ink, inkSecondary, marker, line, hover, code, highlight: NSColor
+
+        static let light = Palette(chrome: 0xF1F2F6, desk: 0xE8EAF1, page: 0xFFFFFF, ink: 0x1B1F30, inkSecondary: 0x4A5068,
+                                   marker: 0xA5ABC0, line: 0xD9DCE6, hover: 0xDFE3EE, code: 0xF1F2F7, highlight: 0xFFF0A3)
+        /// Warm, almost-white tan, like old paper.
+        static let sepia = Palette(chrome: 0xEDE4D3, desk: 0xE3D8C3, page: 0xF8F1E3, ink: 0x3B2F22, inkSecondary: 0x6B5B47,
+                                   marker: 0xB3A38A, line: 0xDACDB5, hover: 0xE2D6BF, code: 0xEFE5D1, highlight: 0xF3D98A)
+        /// A neutral charcoal.
+        static let dark = Palette(chrome: 0x252526, desk: 0x1A1A1B, page: 0x1F1F20, ink: 0xE4E4E4, inkSecondary: 0xA8A8A8,
+                                  marker: 0x6B6B6E, line: 0x353537, hover: 0x2F2F31, code: 0x2B2B2D, highlight: 0x5C4D12)
+        /// Deep blue: the original dark look.
+        static let midnight = Palette(chrome: 0x151A30, desk: 0x0D1123, page: 0x161B31, ink: 0xE3E6F2, inkSecondary: 0xAAB0C8,
+                                      marker: 0x5B6280, line: 0x262D49, hover: 0x232A46, code: 0x1D2340, highlight: 0x5C4D12)
+
+        private init(chrome: Int, desk: Int, page: Int, ink: Int, inkSecondary: Int, marker: Int, line: Int, hover: Int,
+                     code: Int, highlight: Int) {
+            func color(_ hex: Int) -> NSColor {
+                NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+                        blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+            }
+            self.chrome = color(chrome); self.desk = color(desk); self.page = color(page); self.ink = color(ink)
+            self.inkSecondary = color(inkSecondary); self.marker = color(marker); self.line = color(line)
+            self.hover = color(hover); self.code = color(code); self.highlight = color(highlight)
+        }
+    }
+
+    /// The palette for a view drawn in this appearance (System picks Light or Dark from it).
+    static func palette(for appearance: NSAppearance) -> Palette {
+        switch Preferences.theme {
+        case .light: .light
+        case .sepia: .sepia
+        case .dark: .dark
+        case .midnight: .midnight
+        case .system: appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
+        }
+    }
+
+    /// Whether the page stays white in this appearance (White Page, in a theme that isn't light).
+    static func usesWhitePage(for appearance: NSAppearance) -> Bool {
+        guard Preferences.whitePage else { return false }
+        switch Preferences.theme {
+        case .light: return false
+        case .system: return appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        default: return true
+        }
+    }
+
+    private static func chromeColor(_ token: KeyPath<Palette, NSColor> & Sendable) -> NSColor {
+        NSColor(name: nil) { appearance in palette(for: appearance)[keyPath: token] }
+    }
+
+    private static func pageColor(_ token: KeyPath<Palette, NSColor> & Sendable) -> NSColor {
+        NSColor(name: nil) { appearance in
+            (usesWhitePage(for: appearance) ? Palette.light : palette(for: appearance))[keyPath: token]
+        }
     }
 
     // MARK: Type
 
-    /// The page's body text size. Everything else on the page is sized from it.
-    static let bodySize: CGFloat = 17
+    /// The page's body text size (scaled by View → Bigger Text). Everything else on the page is sized from it.
+    static var bodySize: CGFloat { 17 * Preferences.textScale }
     /// Line height as a multiple of the font size.
     static let bodyLineHeight: CGFloat = 1.68
     /// Source view and code: the size and line height of JetBrains Mono.
-    static let sourceSize: CGFloat = 14
+    static var sourceSize: CGFloat { 14 * Preferences.textScale }
     static let sourceLineHeight: CGFloat = 1.75
 
     // MARK: Spacing

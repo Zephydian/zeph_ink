@@ -163,7 +163,18 @@ These are switches in the defaults, toggled from the View menu, and each editor 
 
 ## Theme
 
-Color tokens are light/dark pairs in `Assets.xcassets`, collected in `Editor/Theme.swift`. Theme loads them by name rather than through Xcode's generated symbols, because those can only be used on the main thread, and TextKit 2 may draw on other threads. SwiftUI views use the generated symbols (`Color(.ink)`).
+`Theme` holds four palettes: Light, Sepia, Dark (neutral charcoal) and Midnight (deep blue). System picks Light or Dark from the Mac. Every color is an `NSColor(name:dynamicProvider:)` that looks up the theme when it's drawn, so a theme change only needs a redraw: editors restyle (which redraws TextKit's fragments) and the SwiftUI views take a new identity.
+
+- **Chrome colors** (`chrome`, `chromeInk`, `chromeLine`, `chromeSurface`, `hover`, `desk`) always follow the theme.
+- **Page colors** (`page`, `ink`, `marker`, `rule`, `codeBackground`, `highlight`, `pageAccent`) follow it too, unless White Page keeps the page light in a darker theme.
+- `pageAccent` is the accent resolved in light mode on a white page.
+- `NSApp.appearance` is light for Light and Sepia and dark for Dark and Midnight, so standard controls match.
+
+Increase Contrast swaps faded symbols for the secondary ink. View → Bigger Text and Smaller Text scale `Theme.bodySize` and `sourceSize`, and everything on the page is sized from those.
+
+## Smart paste
+
+`RichPaste` turns the clipboard's HTML (or RTF, through HTML) into markdown by walking the tidied HTML: headings, bold, italic, strikethrough (including Google Docs' styled spans), code, links, lists, quotes, code blocks and dividers. When it finds nothing markdown can keep (a code editor's colored spans), the plain text is pasted instead. ⌘⇧V always pastes plain text.
 
 Fonts are bundled (`Resources/Fonts`) and registered for the app at launch (`Fonts.register()`). Literata (the page) and JetBrains Mono (code and source view) are variable fonts: weights and Literata's optical size come from their axes. Small headings use SF in small capitals, so the text itself isn't changed.
 

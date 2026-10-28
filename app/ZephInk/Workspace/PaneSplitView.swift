@@ -22,7 +22,7 @@ final class PaneSplitView: NSSplitView, NSSplitViewDelegate {
         fatalError("init(coder:) is not supported")
     }
 
-    override var dividerColor: NSColor { Theme.line }
+    override var dividerColor: NSColor { Theme.chromeLine }
 
     /// Shows these panes, reusing the views of panes that stay so their widths and scroll positions do too.
     func update(panes: [(pane: Workspace.Pane, editor: Editor)], focused: Workspace.Pane.ID?) {

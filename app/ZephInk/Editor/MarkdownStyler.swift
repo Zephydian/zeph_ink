@@ -360,7 +360,7 @@ enum MarkdownStyler {
             }
             if isDone || isNumber { attributes[.foregroundColor] = Theme.inkSecondary }
             if style.contains(.link) {
-                attributes[.foregroundColor] = Theme.accent
+                attributes[.foregroundColor] = Theme.pageAccent
                 attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
             }
             if style.contains(.marker) {

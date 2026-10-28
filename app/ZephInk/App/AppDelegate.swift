@@ -13,10 +13,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Reopens the windows, tabs and splits that were open last time, before any file the app was
     /// asked to open joins them.
     func applicationWillFinishLaunching(_ notification: Notification) {
+        followAccessibilitySettings()
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(followAccessibilitySettings),
+                                                          name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
         applyTheme()
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme),
                                                name: UserDefaults.didChangeNotification, object: nil)
         restoredSession = Session.load()?.restore() ?? false
+    }
+
+    /// Increase Contrast: faded markdown symbols get darker. Editors restyle when told a setting changed.
+    @objc private func followAccessibilitySettings() {
+        let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        guard contrast != Preferences.increaseContrast else { return }
+        Preferences.increaseContrast = contrast
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+    }
+
+    /// View → Bigger Text (⌘+), Smaller Text (⌘−) and Actual Size.
+    @objc func makeTextBigger(_ sender: Any?) { scaleText(by: 1.1) }
+    @objc func makeTextSmaller(_ sender: Any?) { scaleText(by: 1 / 1.1) }
+    @objc func makeTextActualSize(_ sender: Any?) { UserDefaults.standard.set(1.0, forKey: Preferences.Key.textScale) }
+
+    private func scaleText(by factor: CGFloat) {
+        let scale = min(max(Preferences.textScale * factor, 0.7), 2)
+        UserDefaults.standard.set((scale * 100).rounded() / 100, forKey: Preferences.Key.textScale)
     }
 
     /// Light, dark, or following the Mac (Settings → Theme).

@@ -125,9 +125,9 @@ final class Editor: NSObject {
         textView.isAutomaticLinkDetectionEnabled = false
 
         textView.drawsBackground = true
-        textView.insertionPointColor = Theme.accent
-        textView.selectedTextAttributes = [.backgroundColor: Theme.accentSoft]
-        textView.setAccessibilityLabel("Document")
+        textView.insertionPointColor = Theme.pageAccent
+        textView.selectedTextAttributes = [.backgroundColor: Theme.pageAccent.withAlphaComponent(0.2)]
+        textView.setAccessibilityLabel(document.displayName)
 
         textView.minSize = .zero
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -280,10 +280,16 @@ final class Editor: NSObject {
         var page: PageGeometry
         var focus: Bool
         var typewriter: Bool
+        var theme: Preferences.Theme
+        var whitePage: Bool
+        var textScale: CGFloat
+        var contrast: Bool
 
         static var current: Look {
             Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current,
-                 page: PageGeometry.current(viewWidth: 1000), focus: Preferences.focusMode, typewriter: Preferences.typewriterMode)
+                 page: PageGeometry.current(viewWidth: 1000), focus: Preferences.focusMode, typewriter: Preferences.typewriterMode,
+                 theme: Preferences.theme, whitePage: Preferences.whitePage, textScale: Preferences.textScale,
+                 contrast: Preferences.increaseContrast)
         }
     }
 
@@ -298,11 +304,14 @@ final class Editor: NSObject {
         if look.margins != old?.margins || look.page != old?.page { textView.pageMetricsDidChange() }
         if look.focus != old?.focus || look.accent != old?.accent { focusedLines = nil; updateFocus() }
         if look.typewriter != old?.typewriter { updateTypewriterSpace(); centerCursorIfTypewriter() }
-        if look.accent != old?.accent || look.symbols != old?.symbols {
-            textView.insertionPointColor = Theme.accent
-            textView.selectedTextAttributes = [.backgroundColor: Theme.accentSoft]
-            if !isSourceMode && !isPlainText { restyleAll() }
+        if look.accent != old?.accent || look.symbols != old?.symbols || look.theme != old?.theme || look.whitePage != old?.whitePage
+            || look.textScale != old?.textScale || look.contrast != old?.contrast {
+            textView.insertionPointColor = Theme.pageAccent
+            textView.selectedTextAttributes = [.backgroundColor: Theme.pageAccent.withAlphaComponent(0.2)]
+            // Restyling sets every color again, which makes TextKit draw the text afresh in the new theme.
+            restyleAll()
             textView.needsDisplay = true
+            scrollView.needsDisplay = true
         }
     }
 

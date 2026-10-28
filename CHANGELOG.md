@@ -33,4 +33,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Word-count goals: click the word count to set one, and a small ring fills as you write.
 - Focus Mode (View, ⌘⇧F) fades everything but the paragraph you're writing and hides the toolbar. Typewriter Mode keeps the line you're typing in the middle of the window. Synced Scrolling makes panes side by side scroll together.
 - Page styles (Settings, or View → Page Style): Continuous (one page that grows), Paper (Letter or A4 pages with page breaks, like a printed document), Square, or Custom Size in inches or centimeters.
-- Settings (⌘,): light or dark theme (or follow the Mac), accent color (the Mac's, Zephydian Ink, or a fixed color), margins (narrow, normal, wide; also under View → Margins), markdown symbols, and whether new documents are markdown or plain text.
+- Themes: Light, Sepia (warm tan), Dark (neutral charcoal) and Midnight (deep blue), or System to follow the Mac. White Page keeps the page white in the darker themes.
+- Pasting formatted text from a web page, Word, Google Docs or Pages turns it into markdown (headings, bold, italic, links, lists, quotes, code). Edit → Paste as Plain Text (⌘⇧V) pastes the words only.
+- View → Bigger Text (⌘+), Smaller Text (⌘−) and Actual Size. Increase Contrast makes faded markdown symbols darker, and Reduce Motion turns off animations.
+- Settings (⌘,): theme, accent color (the Mac's, Zephydian Ink, or a fixed color), margins (narrow, normal, wide; also under View → Margins), markdown symbols, and whether new documents are markdown or plain text.

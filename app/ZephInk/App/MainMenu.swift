@@ -68,6 +68,7 @@ enum MainMenu {
         menu.addItem(item("Cut", #selector(NSText.cut(_:)), "x"))
         menu.addItem(item("Copy", #selector(NSText.copy(_:)), "c"))
         menu.addItem(item("Paste", #selector(NSText.paste(_:)), "v"))
+        menu.addItem(item("Paste as Plain Text", #selector(NSTextView.pasteAsPlainText(_:)), "v", [.command, .shift]))
         menu.addItem(item("Delete", #selector(NSText.delete(_:))))
         menu.addItem(item("Select All", #selector(NSText.selectAll(_:)), "a"))
         menu.addItem(.separator())
@@ -129,6 +130,10 @@ enum MainMenu {
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
         menu.addItem(item("Hide Toolbar", #selector(AppDelegate.toggleToolbar(_:)), "t", [.command, .option]))
+        menu.addItem(item("Bigger Text", #selector(AppDelegate.makeTextBigger(_:)), "+"))
+        menu.addItem(item("Smaller Text", #selector(AppDelegate.makeTextSmaller(_:)), "-"))
+        menu.addItem(item("Actual Size", #selector(AppDelegate.makeTextActualSize(_:))))
+        menu.addItem(.separator())
         menu.addItem(item("Focus Mode", #selector(AppDelegate.toggleFocusMode(_:)), "f", [.command, .shift]))
         menu.addItem(item("Typewriter Mode", #selector(AppDelegate.toggleTypewriterMode(_:))))
         menu.addItem(item("Show Markdown Source", #selector(WorkspaceWindowController.toggleSourceView(_:)), "/"))

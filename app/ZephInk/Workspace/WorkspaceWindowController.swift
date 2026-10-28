@@ -52,7 +52,10 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         observeWorkspace()
         // The focus line and drop highlight are layer colors: redraw them in a new accent.
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.splitView.containers.forEach { $0.needsLayout = true } }
+            MainActor.assumeIsolated {
+                self?.splitView.containers.forEach { $0.needsLayout = true }
+                self?.window?.contentView?.needsDisplay = true
+            }
         }
     }
 

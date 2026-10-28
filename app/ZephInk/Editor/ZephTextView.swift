@@ -248,10 +248,24 @@ final class ZephTextView: NSTextView {
         insertNewline(sender)
     }
 
-    /// Pasted text takes the document's line breaks, so a file never ends up with a mix.
+    /// Paste: formatted text (from a web page, Word, Google Docs…) arrives as markdown, so bold stays
+    /// bold and headings stay headings. Plain text arrives as it is. Either way it takes the document's
+    /// line breaks, so a file never ends up with a mix.
     override func paste(_ sender: Any?) {
+        guard let editor else { return super.paste(sender) }
+        let pasteboard = NSPasteboard.general
+        if editor.handlesMarkdownInput, !editor.isSourceMode,
+           let markdown = RichPaste.markdown(from: pasteboard, lineBreak: editor.lineBreak) {
+            insertText(markdown, replacementRange: selectedRange())
+            return
+        }
+        pasteAsPlainText(sender)
+    }
+
+    /// Edit → Paste as Plain Text (⌘⇧V): the clipboard's words only, no formatting.
+    override func pasteAsPlainText(_ sender: Any?) {
         guard let text = NSPasteboard.general.string(forType: .string), let editor else {
-            super.paste(sender)
+            super.pasteAsPlainText(sender)
             return
         }
         let normalized = FileText(encoding: .utf8, byteOrderMark: Data(), lineBreak: editor.lineBreak).normalizingLineBreaks(text)

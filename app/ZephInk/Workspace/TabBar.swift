@@ -111,7 +111,12 @@ struct TabBar: View {
             if other < index, center < frame.midX { target = min(target, other) }
             if other > index, center > frame.midX { target = max(target, other) }
         }
-        if target != index { withAnimation(.easeOut(duration: 0.15)) { workspace.moveTab(id, to: target) } }
+        guard target != index else { return }
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            workspace.moveTab(id, to: target)
+        } else {
+            withAnimation(.easeOut(duration: 0.15)) { workspace.moveTab(id, to: target) }
+        }
     }
 }
 
@@ -138,10 +143,10 @@ private struct TabButton: View {
         HStack(spacing: 6) {
             HStack(spacing: 0) {
                 Text(document.name)
-                    .foregroundStyle(Color(isSelected ? .ink : .inkSecondary))
+                    .foregroundStyle(Color(nsColor: isSelected ? Theme.chromeInk : Theme.chromeInkSecondary))
                     .truncationMode(.tail)
                 Text(document.fileExtension)
-                    .foregroundStyle(Color(.marker))
+                    .foregroundStyle(Color(nsColor: Theme.chromeMarker))
             }
             .lineLimit(1)
             .font(.system(size: 12.5))
@@ -149,15 +154,15 @@ private struct TabButton: View {
             Button(action: close) {
                 ZStack {
                     if document.isEdited && !isCloseHovered {
-                        Circle().fill(Color(.inkSecondary)).frame(width: 7, height: 7)
+                        Circle().fill(Color(nsColor: Theme.chromeInkSecondary)).frame(width: 7, height: 7)
                     } else {
                         Image(systemName: "xmark")
                             .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(Color(.inkSecondary))
+                            .foregroundStyle(Color(nsColor: Theme.chromeInkSecondary))
                     }
                 }
                 .frame(width: 18, height: 18)
-                .background(RoundedRectangle(cornerRadius: 4).fill(isCloseHovered ? Color(.hover) : .clear))
+                .background(RoundedRectangle(cornerRadius: 4).fill(isCloseHovered ? Color(nsColor: Theme.hover) : .clear))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -170,10 +175,10 @@ private struct TabButton: View {
         .frame(maxWidth: 200, minHeight: 28, maxHeight: 28)
         .background {
             RoundedRectangle(cornerRadius: 7)
-                .fill(isSelected ? Color(.page) : isHovered || isShownElsewhere ? Color(.hover) : .clear)
+                .fill(isSelected ? Color(nsColor: Theme.chromeSurface) : isHovered || isShownElsewhere ? Color(nsColor: Theme.hover) : .clear)
                 .overlay {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 7).strokeBorder(Color(.line), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 7).strokeBorder(Color(nsColor: Theme.chromeLine), lineWidth: 1)
                     }
                 }
         }
@@ -194,8 +199,8 @@ private struct HoverButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Color(.inkSecondary))
-            .background(RoundedRectangle(cornerRadius: 7).fill(isHovered || configuration.isPressed ? Color(.hover) : .clear))
+            .foregroundStyle(Color(nsColor: Theme.chromeInkSecondary))
+            .background(RoundedRectangle(cornerRadius: 7).fill(isHovered || configuration.isPressed ? Color(nsColor: Theme.hover) : .clear))
             .onHover { isHovered = $0 }
     }
 }

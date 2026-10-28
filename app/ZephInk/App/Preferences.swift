@@ -16,6 +16,8 @@ nonisolated enum Preferences {
         static let focusMode = "focusMode"
         static let typewriterMode = "typewriterMode"
         static let syncedScrolling = "syncedScrolling"
+        static let whitePage = "whitePage"
+        static let textScale = "textScale"
     }
 
     /// How the page looks: one page that grows, or separate pages with breaks between them.
@@ -58,17 +60,21 @@ nonisolated enum Preferences {
     }
 
     enum Theme: String, CaseIterable, Identifiable {
-        case system, light, dark
+        case system, light, sepia, dark, midnight
         var id: String { rawValue }
         var title: String { rawValue.capitalized }
 
+        /// The Mac appearance the theme's controls use: light for Light and Sepia, dark for Dark and Midnight.
         var appearance: NSAppearance? {
             switch self {
             case .system: nil
-            case .light: NSAppearance(named: .aqua)
-            case .dark: NSAppearance(named: .darkAqua)
+            case .light, .sepia: NSAppearance(named: .aqua)
+            case .dark, .midnight: NSAppearance(named: .darkAqua)
             }
         }
+
+        /// Whether White Page can apply (every theme but Light).
+        var hasWhitePageOption: Bool { self != .light }
     }
 
     /// The accent: the Mac's own accent color by default, or a fixed one.
@@ -138,6 +144,18 @@ nonisolated enum Preferences {
     private static func value<Value: RawRepresentable>(_ key: String, default fallback: Value) -> Value where Value.RawValue == String {
         UserDefaults.standard.string(forKey: key).flatMap(Value.init(rawValue:)) ?? fallback
     }
+
+    /// How big the page's text is, from View → Bigger Text and Smaller Text (1 is normal).
+    static var textScale: CGFloat {
+        let scale = UserDefaults.standard.double(forKey: Key.textScale)
+        return scale > 0 ? min(max(scale, 0.7), 2) : 1
+    }
+
+    /// The Mac's Increase Contrast setting, kept here so colors drawn on TextKit's threads can read it.
+    nonisolated(unsafe) static var increaseContrast = false
+
+    /// Keeps the page white (with the light page's text colors) in Sepia, Dark and Midnight.
+    static var whitePage: Bool { UserDefaults.standard.bool(forKey: Key.whitePage) }
 
     /// Dims everything but the paragraph you're writing, and hides the toolbar.
     static var focusMode: Bool { UserDefaults.standard.bool(forKey: Key.focusMode) }

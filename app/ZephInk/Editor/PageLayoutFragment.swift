@@ -50,8 +50,11 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
             return
         }
         let frame = columnBounds.offsetBy(dx: point.x, dy: point.y)
+        context.saveGState()
+        clipOutPageBreaks(frame: frame, origin: point, context: context)
         if let code = decoration.code { drawCodeBox(code, in: frame, context: context) }
         if decoration.quoteDepth > 0 { drawQuoteBars(decoration.quoteDepth, in: frame, context: context) }
+        context.restoreGState()
         if decoration.isDivider { drawDivider(in: frame, context: context) }
         super.draw(at: point, in: context)
         if let bullet = decoration.bullet { drawBullet(at: bullet, origin: point, context: context) }
@@ -82,7 +85,7 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
     /// A dashed box in the image's place: the sandbox needs the person's OK to read the folder.
     private func drawAccessPrompt(in rect: CGRect, context: CGContext) {
         context.saveGState()
-        context.setStrokeColor(Theme.line.cgColor)
+        context.setStrokeColor(Theme.rule.cgColor)
         context.setLineWidth(1)
         context.setLineDash(phase: 0, lengths: [4, 3])
         context.addPath(CGPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerWidth: 6, cornerHeight: 6, transform: nil))
@@ -97,6 +100,18 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
         let size = text.size()
         text.draw(at: CGPoint(x: rect.minX + 14, y: rect.midY - size.height / 2))
         NSGraphicsContext.restoreGraphicsState()
+    }
+
+    /// A line that wraps across a page break: its code box and quote bar stop at the page's edge
+    /// rather than crossing the gap between pages.
+    private func clipOutPageBreaks(frame: CGRect, origin: CGPoint, context: CGContext) {
+        guard let breaks = textLayoutManager?.textContainer?.exclusionPaths, !breaks.isEmpty else { return }
+        let shift = CGPoint(x: origin.x - layoutFragmentFrame.minX, y: origin.y - layoutFragmentFrame.minY)
+        let crossing = breaks.map { $0.bounds.offsetBy(dx: shift.x, dy: shift.y) }.filter { $0.intersects(frame) }
+        guard !crossing.isEmpty else { return }
+        context.addRect(frame.insetBy(dx: -4, dy: -4))
+        for band in crossing { context.addRect(band.insetBy(dx: -20, dy: 0)) }
+        context.clip(using: .evenOdd)
     }
 
     // MARK: - Blocks
@@ -123,7 +138,7 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
 
     /// One accent bar per quote level, down the whole line so a quote's lines join up.
     private func drawQuoteBars(_ depth: Int, in frame: CGRect, context: CGContext) {
-        context.setFillColor(Theme.accent.cgColor)
+        context.setFillColor(Theme.pageAccent.cgColor)
         let step = Theme.bodySize * 1.1
         for level in 0..<depth {
             context.fill(CGRect(x: frame.minX + CGFloat(level) * step, y: frame.minY, width: 3, height: frame.height))
@@ -131,7 +146,7 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
     }
 
     private func drawDivider(in frame: CGRect, context: CGContext) {
-        context.setFillColor(Theme.line.cgColor)
+        context.setFillColor(Theme.rule.cgColor)
         context.fill(CGRect(x: frame.minX, y: frame.midY.rounded(), width: frame.width, height: 1))
     }
 
@@ -163,7 +178,7 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
         let path = CGPath(roundedRect: box.insetBy(dx: 0.75, dy: 0.75), cornerWidth: 4, cornerHeight: 4, transform: nil)
         context.addPath(path)
         if isChecked {
-            context.setFillColor(Theme.accent.cgColor)
+            context.setFillColor(Theme.pageAccent.cgColor)
             context.fillPath()
             // The tick, drawn in the page color so it reads on the accent fill.
             context.setStrokeColor(Theme.page.cgColor)

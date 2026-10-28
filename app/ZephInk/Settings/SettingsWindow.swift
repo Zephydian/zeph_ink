@@ -23,6 +23,7 @@ final class SettingsWindowController: NSWindowController {
 
 private struct SettingsView: View {
     @AppStorage(Preferences.Key.theme) private var theme = Preferences.Theme.system.rawValue
+    @AppStorage(Preferences.Key.whitePage) private var whitePage = false
     @AppStorage(Preferences.Key.accent) private var accent = Preferences.Accent.system.rawValue
     @AppStorage(Preferences.Key.margins) private var margins = Preferences.Margins.normal.rawValue
     @AppStorage(MarkdownSymbols.key) private var symbols = MarkdownSymbols.clean.rawValue
@@ -37,6 +38,9 @@ private struct SettingsView: View {
                     ForEach(Preferences.Theme.allCases) { Text($0.title).tag($0.rawValue) }
                 }
                 .pickerStyle(.segmented)
+                Toggle("White page", isOn: $whitePage)
+                    .disabled(!(Preferences.Theme(rawValue: theme)?.hasWhitePageOption ?? true))
+                    .help("Keeps the page white, like paper, in Sepia, Dark and Midnight. In System, when the Mac is dark.")
                 LabeledContent("Accent color") {
                     AccentPicker(selection: $accent)
                 }
@@ -80,7 +84,7 @@ private struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
+        .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
     }
 }

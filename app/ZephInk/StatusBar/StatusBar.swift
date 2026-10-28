@@ -53,11 +53,11 @@ struct StatusBar: View {
             .accessibilityLabel("Settings")
         }
         .font(.system(size: 12).monospacedDigit())
-        .foregroundStyle(Color(.inkSecondary))
+        .foregroundStyle(Color(nsColor: Theme.chromeInkSecondary))
         .padding(.leading, 14)
         .padding(.trailing, 8)
         .frame(height: 32)
-        .background(Color(.chrome))
+        .background(Color(nsColor: Theme.chrome))
     }
 
     private var countText: String {
@@ -89,7 +89,7 @@ private struct GoalRing: View {
 
     var body: some View {
         ZStack {
-            Circle().stroke(Color(.line), lineWidth: 2)
+            Circle().stroke(Color(nsColor: Theme.chromeLine), lineWidth: 2)
             Circle()
                 .trim(from: 0, to: min(progress, 1))
                 .stroke(progress >= 1 ? Color(nsColor: .systemGreen) : Color(nsColor: Theme.accent),
