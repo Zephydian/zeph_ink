@@ -31,11 +31,13 @@ app/
 │   ├── App/           App entry point and the menu bar
 │   ├── Document/      MarkdownDocument (NSDocument)
 │   ├── Workspace/     The window: tab bar and editor panes
-│   ├── Editor/        The text view, its styling, and the theme
-│   └── Resources/     Assets (icon, colors)
-└── ZephInkTests/      Unit tests, with markdown files in Fixtures/
+│   ├── Editor/        The text view, markdown analysis and styling, the theme and fonts
+│   └── Resources/     Assets (icon, colors) and the bundled fonts
+└── ZephInkTests/      Unit tests, with markdown files in Fixtures/ (run `xcodegen` after adding a test file)
 docs/                  How the app is put together (architecture.md)
 ```
+
+See [docs/architecture.md](docs/architecture.md) for how documents, tabs and the markdown styling work.
 
 ## Pull requests
 

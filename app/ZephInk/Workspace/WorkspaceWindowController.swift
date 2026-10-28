@@ -7,7 +7,7 @@ import SwiftUI
 /// Documents don't own this window (they aren't in its `windowControllers`). The controller points its
 /// `document` at the selected tab, which puts that document in the responder chain, so File menu
 /// actions such as Save and Revert act on the tab you're in.
-final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
+final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private static var all: [WorkspaceWindowController] = []
 
     let workspace = Workspace()
@@ -103,6 +103,21 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func selectPreviousTab(_ sender: Any?) {
         workspace.selectTab(offset: -1)
+    }
+
+    /// View → Show Markdown Source (⌘/): the selected tab switches between page and source view.
+    @objc func toggleSourceView(_ sender: Any?) {
+        guard let editor = workspace.selectedTab?.editor else { return }
+        editor.isSourceMode.toggle()
+        window?.makeFirstResponder(editor.textView)
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleSourceView(_:)) {
+            menuItem.state = workspace.selectedTab?.editor.isSourceMode == true ? .on : .off
+            return workspace.selectedTab != nil
+        }
+        return true
     }
 
     // MARK: - Following the workspace

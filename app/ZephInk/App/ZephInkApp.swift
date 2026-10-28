@@ -8,6 +8,7 @@ import AppKit
 @main
 enum ZephInkApp {
     static func main() {
+        Fonts.register()
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

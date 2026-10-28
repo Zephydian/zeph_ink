@@ -90,6 +90,15 @@ enum MainMenu {
 
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
+        menu.addItem(item("Show Markdown Source", #selector(WorkspaceWindowController.toggleSourceView(_:)), "/"))
+        let symbols = NSMenu(title: "Markdown Symbols")
+        for (title, value) in [("Clean", MarkdownSymbols.clean), ("Faded", MarkdownSymbols.faded)] {
+            let entry = item(title, #selector(AppDelegate.setMarkdownSymbols(_:)))
+            entry.representedObject = value.rawValue
+            symbols.addItem(entry)
+        }
+        menu.addItem(submenu(symbols))
+        menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]))
         return menu
     }
