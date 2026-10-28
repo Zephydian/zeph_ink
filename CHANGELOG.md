@@ -31,4 +31,5 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Pressing Return on an empty line at the end of centered or right-aligned text steps out of it, so the next line starts on the left.
 - A status bar: words and reading time (or the selection's words), characters on hover, and whether the document is saved.
 - Word-count goals: click the word count to set one, and a small ring fills as you write.
+- Page styles (Settings, or View → Page Style): Continuous (one page that grows), Paper (Letter or A4 pages with page breaks, like a printed document), Square, or Custom Size in inches or centimeters.
 - Settings (⌘,): light or dark theme (or follow the Mac), accent color (the Mac's, Zephydian Ink, or a fixed color), margins (narrow, normal, wide; also under View → Margins), markdown symbols, and whether new documents are markdown or plain text.

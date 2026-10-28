@@ -27,6 +27,8 @@ private struct SettingsView: View {
     @AppStorage(Preferences.Key.margins) private var margins = Preferences.Margins.normal.rawValue
     @AppStorage(MarkdownSymbols.key) private var symbols = MarkdownSymbols.clean.rawValue
     @AppStorage(Preferences.Key.defaultType) private var defaultType = Preferences.DocumentType.markdown.rawValue
+    @AppStorage(Preferences.Key.pageStyle) private var pageStyle = Preferences.PageStyle.continuous.rawValue
+    @AppStorage(Preferences.Key.paperSize) private var paperSize = Preferences.PaperSize.automatic.rawValue
 
     var body: some View {
         Form {
@@ -40,6 +42,23 @@ private struct SettingsView: View {
                 }
             }
             Section("Page") {
+                Picker("Page style", selection: $pageStyle) {
+                    ForEach(Preferences.PageStyle.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                switch Preferences.PageStyle(rawValue: pageStyle) ?? .continuous {
+                case .continuous:
+                    Text("One page that grows as you write, with no page breaks.").font(.caption).foregroundStyle(.secondary)
+                case .paper:
+                    Picker("Paper size", selection: $paperSize) {
+                        ForEach(Preferences.PaperSize.allCases) { Text($0.title).tag($0.rawValue) }
+                    }
+                    Text("Pages with breaks between them, like a printed document. Automatic uses your region's paper.")
+                        .font(.caption).foregroundStyle(.secondary)
+                case .square:
+                    Text("Square pages with breaks between them.").font(.caption).foregroundStyle(.secondary)
+                case .custom:
+                    CustomPageSize()
+                }
                 Picker("Margins", selection: $margins) {
                     ForEach(Preferences.Margins.allCases) { Text($0.title).tag($0.rawValue) }
                 }
@@ -63,6 +82,42 @@ private struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Width and height for the Custom Size page style, in inches or centimeters (the region's default).
+private struct CustomPageSize: View {
+    @AppStorage(Preferences.Key.customPageWidth) private var width = 432.0
+    @AppStorage(Preferences.Key.customPageHeight) private var height = 648.0
+    @State private var usesCentimeters = Locale.current.measurementSystem != .us
+
+    /// Points in one unit.
+    private var unit: Double { usesCentimeters ? 72 / 2.54 : 72 }
+
+    var body: some View {
+        LabeledContent("Size") {
+            HStack(spacing: 6) {
+                field($width)
+                Text("×").foregroundStyle(.secondary)
+                field($height)
+                Picker("", selection: $usesCentimeters) {
+                    Text("in").tag(false)
+                    Text("cm").tag(true)
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+        }
+    }
+
+    /// A size in the chosen unit, stored in points (2 to 40 inches).
+    private func field(_ points: Binding<Double>) -> some View {
+        TextField("", value: Binding(get: { (points.wrappedValue / unit * 100).rounded() / 100 },
+                                     set: { points.wrappedValue = min(max($0 * unit, 144), 2880) }),
+                  format: .number.precision(.fractionLength(0...2)))
+            .textFieldStyle(.roundedBorder)
+            .multilineTextAlignment(.trailing)
+            .frame(width: 64)
     }
 }
 

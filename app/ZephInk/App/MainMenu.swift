@@ -144,6 +144,13 @@ enum MainMenu {
             margins.addItem(entry)
         }
         menu.addItem(submenu(margins))
+        let pages = NSMenu(title: "Page Style")
+        for style in Preferences.PageStyle.allCases {
+            let entry = item(style.title, #selector(AppDelegate.setPageStyle(_:)))
+            entry.representedObject = style.rawValue
+            pages.addItem(entry)
+        }
+        menu.addItem(submenu(pages))
         menu.addItem(.separator())
         menu.addItem(item("Split Right", #selector(WorkspaceWindowController.splitRight(_:)), "\\"))
         menu.addItem(item("Close Split", #selector(WorkspaceWindowController.closeSplit(_:))))

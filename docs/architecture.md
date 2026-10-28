@@ -159,4 +159,17 @@ Color tokens are light/dark pairs in `Assets.xcassets`, collected in `Editor/The
 
 Fonts are bundled (`Resources/Fonts`) and registered for the app at launch (`Fonts.register()`). Literata (the page) and JetBrains Mono (code and source view) are variable fonts: weights and Literata's optical size come from their axes. Small headings use SF in small capitals, so the text itself isn't changed.
 
-The page is drawn by `ZephTextView.drawBackground(in:)`: a centered page on the desk, at most 720 pt wide, with 72 pt of padding. The padding and the desk margins shrink in narrow windows.
+## Pages
+
+`PageGeometry` works out the pages for the current page style and the editor's width. `ZephTextView` draws them in `drawBackground(in:)`, and puts the text inside them with `textContainerInset`.
+
+- **Continuous** is one page up to 720 pt wide, at least as tall as the window, with no breaks.
+- **Paper** (Letter or A4; Automatic follows the region), **Square** (720 pt) and **Custom Size** are pages of that size in points, one under another, 24 pt apart. Margins apply on all four sides.
+- A page wider than the window gets narrower; its height stays.
+
+**Page breaks.** Text flows from page to page through exclusion paths. Each page break is a band in the text container covering the bottom margin, the gap and the next page's top margin, so TextKit 2 places no line there. A long paragraph splits across the break like in a word processor.
+
+- **How many bands:** there's one band for each page the text reaches. The count comes from `usageBoundsForTextContainer`, and is checked again when the text's length or the view's size changes.
+- **Relayout:** TextKit 2 keeps lines it already placed, so after the bands change, the layout is invalidated from the first band that changed.
+
+The padding and desk margins shrink in narrow windows.

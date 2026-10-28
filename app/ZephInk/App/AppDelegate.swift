@@ -65,7 +65,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         UserDefaults.standard.set(!Toolbar.isShown, forKey: Toolbar.isShownKey)
     }
 
+    /// View → Page Style → Continuous, Paper, Square or Custom Size (set in Settings).
+    @objc func setPageStyle(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let style = Preferences.PageStyle(rawValue: raw) else { return }
+        Preferences.set(style, for: Preferences.Key.pageStyle)
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(setPageStyle(_:)) {
+            menuItem.state = menuItem.representedObject as? String == Preferences.pageStyle.rawValue ? .on : .off
+        }
         if menuItem.action == #selector(setMargins(_:)) {
             menuItem.state = menuItem.representedObject as? String == Preferences.margins.rawValue ? .on : .off
         }

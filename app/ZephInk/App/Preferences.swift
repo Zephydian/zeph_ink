@@ -9,6 +9,49 @@ nonisolated enum Preferences {
         static let accent = "accentColor"
         static let margins = "margins"
         static let defaultType = "defaultDocumentType"
+        static let pageStyle = "pageStyle"
+        static let paperSize = "paperSize"
+        static let customPageWidth = "customPageWidth"
+        static let customPageHeight = "customPageHeight"
+    }
+
+    /// How the page looks: one page that grows, or separate pages with breaks between them.
+    enum PageStyle: String, CaseIterable, Identifiable {
+        case continuous, paper, square, custom
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .continuous: "Continuous"
+            case .paper: "Paper"
+            case .square: "Square"
+            case .custom: "Custom Size"
+            }
+        }
+    }
+
+    /// The paper for the Paper page style (and, later, PDF export).
+    enum PaperSize: String, CaseIterable, Identifiable {
+        case automatic, letter, a4
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .automatic: "Automatic"
+            case .letter: "Letter"
+            case .a4: "A4"
+            }
+        }
+
+        /// The size in points (72 to the inch). Automatic is Letter in the US and Canada, A4 elsewhere.
+        var size: NSSize {
+            switch self {
+            case .letter: NSSize(width: 612, height: 792)
+            case .a4: NSSize(width: 595, height: 842)
+            case .automatic:
+                ["US", "CA", "MX", "PH"].contains(Locale.current.region?.identifier ?? "") ? PaperSize.letter.size : PaperSize.a4.size
+            }
+        }
     }
 
     enum Theme: String, CaseIterable, Identifiable {
@@ -78,6 +121,16 @@ nonisolated enum Preferences {
     static var accent: Accent { value(Key.accent, default: .system) }
     static var margins: Margins { value(Key.margins, default: .normal) }
     static var defaultType: DocumentType { value(Key.defaultType, default: .markdown) }
+    static var pageStyle: PageStyle { value(Key.pageStyle, default: .continuous) }
+    static var paperSize: PaperSize { value(Key.paperSize, default: .automatic) }
+
+    /// The Custom Size page, in points. Defaults to 6 × 9 inches, a common book size.
+    static var customPageSize: NSSize {
+        let defaults = UserDefaults.standard
+        let width = defaults.double(forKey: Key.customPageWidth)
+        let height = defaults.double(forKey: Key.customPageHeight)
+        return NSSize(width: width >= 144 ? width : 432, height: height >= 144 ? height : 648)
+    }
 
     private static func value<Value: RawRepresentable>(_ key: String, default fallback: Value) -> Value where Value.RawValue == String {
         UserDefaults.standard.string(forKey: key).flatMap(Value.init(rawValue:)) ?? fallback

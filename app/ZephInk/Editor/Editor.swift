@@ -277,8 +277,12 @@ final class Editor: NSObject {
         var accent: Preferences.Accent
         var margins: Preferences.Margins
         var symbols: MarkdownSymbols
+        var page: PageGeometry
 
-        static var current: Look { Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current) }
+        static var current: Look {
+            Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current,
+                 page: PageGeometry.current(viewWidth: 1000))
+        }
     }
 
     private var appliedLook: Look?
@@ -289,7 +293,7 @@ final class Editor: NSObject {
         guard look != appliedLook else { return }
         let old = appliedLook
         appliedLook = look
-        if look.margins != old?.margins { textView.pageMetricsDidChange() }
+        if look.margins != old?.margins || look.page != old?.page { textView.pageMetricsDidChange() }
         if look.accent != old?.accent || look.symbols != old?.symbols {
             textView.insertionPointColor = Theme.accent
             textView.selectedTextAttributes = [.backgroundColor: Theme.accentSoft]
@@ -300,10 +304,7 @@ final class Editor: NSObject {
 
 
     @objc private func clipViewDidResize() {
-        let height = scrollView.contentSize.height
-        guard textView.minSize.height != height else { return }
-        textView.minSize = NSSize(width: 0, height: height)
-        if textView.frame.height < height { textView.setFrameSize(NSSize(width: textView.frame.width, height: height)) }
+        textView.visibleHeightDidChange()
     }
 
     // MARK: - Checkboxes
@@ -327,6 +328,7 @@ extension Editor: NSTextStorageDelegate {
         guard editedMask.contains(.editedCharacters) else { return }
         restyle(afterEditing: editedRange, changeInLength: delta)
         stats.textDidChange { [storage] in storage.string }
+        if delta != 0 { DispatchQueue.main.async { [weak self] in self?.textView.textDidChangeLength() } }
     }
 }
 

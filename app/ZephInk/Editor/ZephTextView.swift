@@ -11,43 +11,90 @@ final class ZephTextView: NSTextView {
 
     // MARK: - The page
 
-    /// The page's rectangle in this view: centered, at most `Theme.pageMaxWidth` wide, and at least as
-    /// tall as the visible area.
-    private var pageRect: NSRect {
-        let isNarrow = bounds.width < Theme.narrowWidth
-        let desk = isNarrow ? Theme.narrowDeskMargin : Theme.deskMargin
-        let width = min(Theme.pageMaxWidth, bounds.width - desk.width * 2)
-        return NSRect(x: ((bounds.width - width) / 2).rounded(), y: desk.height,
-                      width: width, height: max(bounds.height - desk.height * 2, 0))
-    }
+    /// The pages for this view's width and the current settings.
+    private(set) var geometry = PageGeometry.current(viewWidth: 900)
+    /// How many pages the text fills (always 1 for Continuous).
+    private(set) var pageCount = 1
 
-    /// Places the text inside the page whenever the view's width changes.
-    private func updateTextInset() {
-        let isNarrow = bounds.width < Theme.narrowWidth
-        let padding = isNarrow ? Theme.narrowPagePadding : Theme.pagePadding
-        let desk = isNarrow ? Theme.narrowDeskMargin : Theme.deskMargin
-        let inset = NSSize(width: pageRect.minX + padding.width, height: desk.height + padding.height)
+    /// Lays the text out on the pages again: after resizing, a settings change, or an edit.
+    func updatePages() {
+        let geometry = PageGeometry.current(viewWidth: bounds.width)
+        let inset = geometry.textInset(viewWidth: bounds.width)
+        let geometryChanged = geometry != self.geometry
+        self.geometry = geometry
         if textContainerInset != inset {
             textContainerInset = inset
             editor?.textColumnDidResize()
         }
+        updatePageBreaks(force: geometryChanged)
+        if geometryChanged { needsDisplay = true }
     }
 
-    /// The margins changed: move the text inside the page.
+    /// Keeps an exclusion band at every page break the text reaches, plus one more for text about to
+    /// flow onto a new page. Each change lays the text out again, so it only changes when needed.
+    private func updatePageBreaks(force: Bool = false) {
+        guard let container = textContainer else { return }
+        guard geometry.isPaged else {
+            if !container.exclusionPaths.isEmpty { container.exclusionPaths = [] }
+            if pageCount != 1 { pageCount = 1; needsDisplay = true }
+            visibleHeightDidChange()
+            return
+        }
+        let used = textLayoutManager?.usageBoundsForTextContainer.height ?? 0
+        let pages = geometry.pageCount(forTextHeight: used)
+        let bands = geometry.breaks(pages: pages, width: container.size.width)
+        let current = container.exclusionPaths.map(\.bounds)
+        if force || current != bands {
+            container.exclusionPaths = bands.map { NSBezierPath(rect: $0) }
+            // TextKit 2 keeps the lines it already placed, so place them again from the first band that
+            // changed (or the top), and the text flows around the new breaks.
+            let firstChange = Array(zip(current, bands)).firstIndex { $0 != $1 } ?? min(current.count, bands.count)
+            let top = firstChange < bands.count ? bands[firstChange].minY - geometry.contentHeight : 0
+            if let layout = textLayoutManager {
+                let start = layout.textLayoutFragment(for: CGPoint(x: 0, y: max(top, 0)))?.rangeInElement.location ?? layout.documentRange.location
+                if let range = NSTextRange(location: start, end: layout.documentRange.endLocation) {
+                    layout.invalidateLayout(for: range)
+                }
+                layout.textViewportLayoutController.layoutViewport()
+            }
+        }
+        if pages != pageCount {
+            pageCount = pages
+            needsDisplay = true
+        }
+        visibleHeightDidChange()
+    }
+
+    /// The window got taller or shorter: a Continuous page reaches the bottom of it, and paged views
+    /// stay tall enough for every page.
+    func visibleHeightDidChange() {
+        guard let clip = enclosingScrollView?.contentSize.height else { return }
+        let height = geometry.isPaged ? max(geometry.viewHeight(pages: pageCount), clip) : clip
+        guard minSize.height != height else { return }
+        minSize = NSSize(width: 0, height: height)
+        if frame.height < height { setFrameSize(NSSize(width: frame.width, height: height)) }
+    }
+
+    /// The margins or page style changed.
     func pageMetricsDidChange() {
-        updateTextInset()
+        updatePages()
         needsDisplay = true
+    }
+
+    /// The text changed: it may need more pages, or fewer.
+    func textDidChangeLength() {
+        guard geometry.isPaged else { return }
+        updatePageBreaks()
     }
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
-        updateTextInset()
+        updatePages()
     }
 
     override func drawBackground(in rect: NSRect) {
         Theme.desk.setFill()
         rect.fill()
-        let page = pageRect
         NSGraphicsContext.saveGraphicsState()
         let shadow = NSShadow()
         shadow.shadowColor = NSColor.black.withAlphaComponent(effectiveAppearance.isDark ? 0.35 : 0.08)
@@ -55,7 +102,10 @@ final class ZephTextView: NSTextView {
         shadow.shadowOffset = NSSize(width: 0, height: -8)
         shadow.set()
         Theme.page.setFill()
-        NSBezierPath(roundedRect: page, xRadius: 4, yRadius: 4).fill()
+        for page in geometry.pageRects(count: pageCount, viewWidth: bounds.width, viewHeight: bounds.height)
+        where page.intersects(rect.insetBy(dx: 0, dy: -40)) {
+            NSBezierPath(roundedRect: page, xRadius: geometry.isPaged ? 2 : 4, yRadius: geometry.isPaged ? 2 : 4).fill()
+        }
         NSGraphicsContext.restoreGraphicsState()
     }
 
