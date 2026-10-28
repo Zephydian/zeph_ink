@@ -155,6 +155,12 @@ final class ZephTextView: NSTextView {
             undoManager?.endUndoGrouping()
             return
         }
+        if editor?.handlesMarkdownInput == true, selectedRange().length == 0, let editor,
+           let leave = MarkdownCommands.leaveAlignment(at: selectedRange().location, text: string as NSString,
+                                                       analysis: editor.analysis, lineBreak: lineBreak) {
+            apply(leave)
+            return
+        }
         breakLine()
     }
 

@@ -28,3 +28,4 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Highlight (`==text==`, ⌘⇧H), Clear Formatting, and toolbar buttons for undo, redo and the emoji picker.
 - Align paragraphs left, center or right (⌘{ ⌘| ⌘}). Markdown has no alignment, so center and right are saved as `<div align="center">` around the paragraph, which GitHub and many apps show centered.
 - Pressing Return inside bold, italic or other styles closes them, so the new line starts plain.
+- Pressing Return on an empty line at the end of centered or right-aligned text steps out of it, so the next line starts on the left.

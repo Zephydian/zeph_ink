@@ -306,6 +306,11 @@ extension Editor: NSTextViewDelegate {
     func textViewDidChangeSelection(_ notification: Notification) {
         updateRevealedLines()
         formatting.update(text: storage.string as NSString, selection: textView.selectedRange(), analysis: analysis)
+        let selection = textView.selectedRange()
+        if selection.length == 0, !analysis.lines.isEmpty {
+            let line = analysis.lines[analysis.lineIndex(at: selection.location)]
+            if line.range.length == 0 { textView.typingAttributes = MarkdownStyler.typingAttributes(for: line, mode: mode) }
+        }
     }
 }
 

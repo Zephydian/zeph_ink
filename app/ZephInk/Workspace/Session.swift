@@ -29,15 +29,20 @@ struct Session: Codable, Equatable {
     private static let key = "session"
 
     /// Set once quitting has saved the session, so windows closing on the way out don't overwrite it.
-    static var isFrozen = false
+    /// Always set while unit tests run: the test copy of the app shares the real app's settings, and
+    /// must neither reopen nor overwrite the person's session.
+    static var isFrozen = isRunningTests
+
+    static let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        || NSClassFromString("XCTestCase") != nil
 
     static func load() -> Session? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        guard !isRunningTests, let data = UserDefaults.standard.data(forKey: key) else { return nil }
         return try? PropertyListDecoder().decode(Session.self, from: data)
     }
 
     func save() {
-        guard let data = try? PropertyListEncoder().encode(self) else { return }
+        guard !Session.isRunningTests, let data = try? PropertyListEncoder().encode(self) else { return }
         UserDefaults.standard.set(data, forKey: Self.key)
     }
 

@@ -201,4 +201,19 @@ struct CommandsTests {
         #expect(lines[4].kind == .alignTag)
         #expect(lines[6].alignment == nil)
     }
+
+    @Test func leftWorksFromTheHiddenTagLines() {
+        #expect(run("<div align=\"center\">|\n\nHello\n\n</div>", align(.left)) == "|Hello")
+        #expect(run("<div align=\"center\">\n\nHello\n\n</div>|", align(.left)) == "Hello|")
+        #expect(run("<div align=\"center\">\n|\nHello\n\n</div>", align(.left)) == "|Hello")
+    }
+
+    @Test func returnOnAnEmptyLineLeavesTheAlignment() {
+        let leave: (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result = { text, selection, analysis in
+            MarkdownCommands.leaveAlignment(at: selection.location, text: text, analysis: analysis, lineBreak: "\n")
+                ?? .init(edits: [], selection: selection)
+        }
+        #expect(run("<div align=\"center\">\n\nHello\n|\n\n</div>", leave) == "<div align=\"center\">\n\nHello\n\n</div>\n\n|")
+        #expect(run("<div align=\"center\">\n\nHel|lo\n\n</div>", leave) == "<div align=\"center\">\n\nHel|lo\n\n</div>")
+    }
 }

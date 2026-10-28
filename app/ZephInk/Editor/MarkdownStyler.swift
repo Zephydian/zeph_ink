@@ -107,6 +107,15 @@ enum MarkdownStyler {
         return ns.substring(with: match.range(at: 1))
     }
 
+    /// What typing on an empty line should look like: that line's own style. (NSTextView would
+    /// otherwise copy the line above, so typing under a centered line would come out centered.)
+    static func typingAttributes(for line: MarkdownAnalysis.Line, mode: Mode) -> [NSAttributedString.Key: Any] {
+        guard case .page = mode else { return sourceAttributes }
+        var attributes = BlockStyle(line, hidesSymbols: false).attributes
+        attributes[.lineDecoration] = nil
+        return attributes
+    }
+
     // MARK: - One line
 
     private static func styleLine(_ line: MarkdownAnalysis.Line, spans: [MarkdownAnalysis.Span],

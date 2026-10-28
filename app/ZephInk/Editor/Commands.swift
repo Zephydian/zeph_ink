@@ -95,6 +95,48 @@ nonisolated enum MarkdownCommands {
 
     typealias Alignment = MarkdownAnalysis.Alignment
 
+    /// The `<div align>` and `</div>` lines around a line, if it's in an aligned region (the tag lines
+    /// themselves count, since the cursor can be on them).
+    static func alignedRegion(around index: Int, in analysis: MarkdownAnalysis) -> (opening: Int, closing: Int)? {
+        let lines = analysis.lines
+        guard lines.indices.contains(index) else { return nil }
+        if lines[index].kind != .alignTag && lines[index].alignment == nil { return nil }
+        // A tag line is the opening one if the line after it is inside the region.
+        var opening = index, closing = index
+        if lines[index].kind == .alignTag {
+            if index + 1 < lines.count, lines[index + 1].alignment != nil || lines[index + 1].kind == .alignTag {
+                closing = index + 1
+            } else {
+                opening = index - 1
+            }
+        }
+        while opening >= 0, lines[opening].kind != .alignTag { opening -= 1 }
+        while closing < lines.count, lines[closing].kind != .alignTag { closing += 1 }
+        guard opening >= 0, closing < lines.count, opening < closing else { return nil }
+        return (opening, closing)
+    }
+
+    /// Return on an empty line at the end of an aligned region: steps out of the region, so the new
+    /// line starts at the left (like Return on an empty list item). Nil when that's not the case.
+    static func leaveAlignment(at cursor: Int, text: NSString, analysis: MarkdownAnalysis, lineBreak: String) -> Result? {
+        guard !analysis.lines.isEmpty else { return nil }
+        let index = analysis.lineIndex(at: cursor)
+        let line = analysis.lines[index]
+        guard line.alignment != nil, line.range.length == 0, let (_, closing) = alignedRegion(around: index, in: analysis) else { return nil }
+        // Only from the last line with text, or the blank lines after it.
+        guard analysis.lines[(index + 1)..<closing].allSatisfy({ $0.kind == .blank }) else { return nil }
+        let tag = analysis.lines[closing]
+        let breakLength = (lineBreak as NSString).length
+        // Remove the empty line, and start a new paragraph after `</div>`.
+        let afterTag = NSMaxRange(tag.range)
+        let insertion = lineBreak + lineBreak
+        let edits = [Edit(range: NSRange(location: afterTag, length: 0), replacement: insertion),
+                     Edit(range: line.fullRange.length > 0 ? line.fullRange : NSRange(location: line.range.location - breakLength, length: breakLength),
+                          replacement: "")]
+        let removed = edits[1].range.length
+        return Result(edits: edits, selection: NSRange(location: afterTag + (insertion as NSString).length - removed, length: 0))
+    }
+
     static func alignment(at location: Int, analysis: MarkdownAnalysis) -> Alignment {
         guard !analysis.lines.isEmpty else { return .left }
         return analysis.lines[analysis.lineIndex(at: location)].alignment ?? .left
@@ -111,14 +153,7 @@ nonisolated enum MarkdownCommands {
         var last = analysis.lineIndex(at: NSMaxRange(selection))
         let tag = "<div align=\"\(alignment.rawValue)\">"
 
-        if lines[first].alignment != nil {
-            // Already aligned: find its tags.
-            var opening = first, closing = first
-            while opening > 0, lines[opening].kind != .alignTag { opening -= 1 }
-            while closing + 1 < lines.count, lines[closing].kind != .alignTag { closing += 1 }
-            guard lines[opening].kind == .alignTag, lines[closing].kind == .alignTag, opening < closing else {
-                return Result(edits: [], selection: selection)
-            }
+        if let (opening, closing) = alignedRegion(around: first, in: analysis) {
             if alignment != .left {
                 let delta = (tag as NSString).length - lines[opening].range.length
                 return Result(edits: [Edit(range: lines[opening].range, replacement: tag)],
@@ -139,9 +174,18 @@ nonisolated enum MarkdownCommands {
                 let previous = lines[max(closing - (lines[closing - 1].kind == .blank ? 2 : 1), 0)]
                 removeBottom = NSRange(location: NSMaxRange(previous.range), length: text.length - NSMaxRange(previous.range))
             }
-            let shift = selection.location >= NSMaxRange(removeTop) ? removeTop.length : 0
+            // A cursor inside removed text moves to where that text was.
+            func map(_ position: Int) -> Int {
+                var mapped = position
+                for removed in [removeTop, removeBottom] {
+                    if position >= NSMaxRange(removed) { mapped -= removed.length }
+                    else if position > removed.location { mapped -= position - removed.location }
+                }
+                return mapped
+            }
+            let start = map(selection.location), end = map(NSMaxRange(selection))
             return Result(edits: [Edit(range: removeBottom, replacement: ""), Edit(range: removeTop, replacement: "")],
-                          selection: NSRange(location: selection.location - shift, length: selection.length))
+                          selection: NSRange(location: start, length: max(end - start, 0)))
         }
 
         guard alignment != .left else { return Result(edits: [], selection: selection) }
