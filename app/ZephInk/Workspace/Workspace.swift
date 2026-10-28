@@ -29,6 +29,8 @@ final class Workspace {
     private(set) var focusedPaneID: Pane.ID?
     /// A short message shown over the window for a moment ("Up to three documents side by side").
     var notice: String?
+    /// The sidebar beside the editors, if it's open: the outline, or search across documents.
+    var sidebar: Sidebar.Mode?
 
     var focusedPane: Pane? { panes.first { $0.id == focusedPaneID } }
     var selectedID: Tab.ID? { focusedPane?.tabID }

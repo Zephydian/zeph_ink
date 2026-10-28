@@ -67,6 +67,8 @@ nonisolated struct MarkdownAnalysis {
         case blank
         /// `<div align="…">` or `</div>` around aligned paragraphs: a symbol line.
         case alignTag
+        /// A line of the YAML front matter at the top of a file (`---`, `title: …`, `---`).
+        case frontMatter(CodeLine)
         case heading(level: Int)
         case code(CodeLine)
         case divider
@@ -116,12 +118,20 @@ nonisolated struct MarkdownAnalysis {
     /// The next unused block number, for blocks added by `updated(afterEditing:changeInLength:in:)`.
     private var nextBlock = 0
 
-    init(_ text: String) {
+    /// `allowsFrontMatter` is false for a piece of a document that doesn't start at its top.
+    init(_ text: String, allowsFrontMatter: Bool = true) {
         let map = SourceMap(text)
         lines = map.lines.map { Line(range: $0.range, fullRange: $0.fullRange) }
         let nsText = text as NSString
+        // Front matter isn't markdown: the parser would read its closing `---` as a heading underline.
+        // It gets empty lines in its place, so the lines after it keep their numbers.
+        let frontMatter = allowsFrontMatter ? Self.frontMatterEnd(in: nsText, lines: lines) : nil
+        var parsed = text
+        if let end = frontMatter {
+            parsed = String(repeating: "\n", count: end + 1) + nsText.substring(from: NSMaxRange(lines[end].fullRange))
+        }
         var builder = Builder(map: map, text: nsText, lines: lines)
-        let document = Document(parsing: text, options: [.disableSmartOpts])
+        let document = Document(parsing: parsed, options: [.disableSmartOpts])
         for (index, child) in document.children.enumerated() {
             builder.visit(child, block: index, quoteDepth: 0)
         }
@@ -129,6 +139,28 @@ nonisolated struct MarkdownAnalysis {
         lines = builder.lines
         spans = builder.spans
         nextBlock = document.childCount
+        if let end = frontMatter {
+            for index in 0...end {
+                let isFence = index == 0 || index == end
+                lines[index].kind = .frontMatter(CodeLine(isFence: isFence, isFirst: index == 0, isLast: index == end))
+                lines[index].markers = isFence ? [lines[index].range] : []
+                lines[index].block = -1
+            }
+        }
+    }
+
+    /// The last line of the YAML front matter, if the text starts with some: a `---` line, then
+    /// lines up to the next `---` (or `...`) line.
+    static func frontMatterEnd(in text: NSString, lines: [Line]) -> Int? {
+        func trimmed(_ index: Int) -> String {
+            text.substring(with: lines[index].range).trimmingCharacters(in: .whitespaces)
+        }
+        guard lines.count >= 2, trimmed(0) == "---" else { return nil }
+        for index in 1..<min(lines.count, 500) {
+            let line = trimmed(index)
+            if line == "---" || line == "..." { return index > 1 ? index : nil }
+        }
+        return nil
     }
 
     /// The analysis of `text` after an edit, worked out by parsing only the blocks around the edit
@@ -140,7 +172,7 @@ nonisolated struct MarkdownAnalysis {
     func updated(afterEditing edited: NSRange, changeInLength delta: Int, in text: String) -> (MarkdownAnalysis, ClosedRange<Int>)? {
         let nsText = text as NSString
         let oldEnd = NSMaxRange(edited) - delta
-        guard !lines.isEmpty, oldEnd >= edited.location else { return nil }
+        guard !lines.isEmpty, oldEnd >= edited.location, edited.location > 0 || !text.hasPrefix("--") else { return nil }
 
         // The old lines the edit touched, widened to whole blocks, one line further each way, and
         // to whole blocks again.
@@ -157,8 +189,9 @@ nonisolated struct MarkdownAnalysis {
         // Fences open or close everything after them, so they need the whole text.
         for line in lines[first...last] {
             if case .code(let code) = line.kind, code.isFence { return nil }
-            // Alignment comes from tags that may be outside the region.
+            // Alignment comes from tags that may be outside the region, and front matter only counts at the top.
             if line.alignment != nil || line.kind == .alignTag { return nil }
+            if case .frontMatter = line.kind { return nil }
         }
         let start = lines[first].fullRange.location
         let end = NSMaxRange(lines[last].fullRange) + delta
@@ -167,7 +200,7 @@ nonisolated struct MarkdownAnalysis {
         let regionText = nsText.substring(with: region)
         if regionText.contains("```") || regionText.contains("~~~") || regionText.contains("]:") || regionText.contains("<div") || regionText.contains("</div") { return nil }
 
-        var part = MarkdownAnalysis(regionText)
+        var part = MarkdownAnalysis(regionText, allowsFrontMatter: start == 0)
         // A region that ends with a line break gets an empty last line from the split: that line is
         // really the start of the next one, which stays as it was.
         if last + 1 < lines.count, part.lines.count > 1, part.lines.last?.fullRange.length == 0 {

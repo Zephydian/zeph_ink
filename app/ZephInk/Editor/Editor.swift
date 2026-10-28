@@ -26,6 +26,41 @@ final class Editor: NSObject {
     let formatting = FormattingState()
     /// Words and characters, for the status bar.
     let stats = DocumentStats()
+    /// The headings, for the outline sidebar.
+    let outline = Outline()
+    private var outlineUpdate: DispatchWorkItem?
+
+    /// Works the outline out again a moment after typing pauses.
+    private func scheduleOutlineUpdate() {
+        outlineUpdate?.cancel()
+        let update = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            outline.update(from: analysis, text: storage.string as NSString, cursor: textView.selectedRange().location)
+        }
+        outlineUpdate = update
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: update)
+    }
+
+    /// Puts the cursor at a place in the text and scrolls it to near the top of the pane (the outline
+    /// and search results use this).
+    func reveal(_ range: NSRange) {
+        let length = (storage.string as NSString).length
+        let safe = NSRange(location: min(range.location, length), length: min(range.length, max(length - range.location, 0)))
+        textView.setSelectedRange(safe)
+        textView.window?.makeFirstResponder(textView)
+        textView.scrollRangeToVisible(safe)
+        if let window = textView.window {
+            let onScreen = textView.firstRect(forCharacterRange: NSRange(location: safe.location, length: 0), actualRange: nil)
+            if onScreen != .zero {
+                let line = textView.convert(window.convertFromScreen(onScreen), from: nil)
+                let clip = scrollView.contentView
+                let target = NSRect(origin: NSPoint(x: clip.bounds.origin.x, y: line.minY - 80), size: clip.bounds.size)
+                clip.scroll(to: clip.constrainBoundsRect(target).origin)
+                scrollView.reflectScrolledClipView(clip)
+            }
+        }
+        if safe.length > 0 { textView.showFindIndicator(for: safe) }
+    }
 
     /// The folder the document is saved in (images are found relative to it).
     var documentFolder: URL? { document?.fileURL?.deletingLastPathComponent() }
@@ -45,6 +80,23 @@ final class Editor: NSObject {
 
     private var mode: MarkdownStyler.Mode {
         isSourceMode || isPlainText ? .source : .page(MarkdownSymbols.current)
+    }
+
+    /// Whether the front matter card is folded to its header (clicking the header switches it).
+    private(set) var frontMatterCollapsed = false
+
+    /// A click on the front matter card's header (not while editing it) folds or unfolds the card.
+    func toggleFrontMatter(ifHeaderAt index: Int) -> Bool {
+        guard mode == .page(.clean), analysis.lines.count > 1, case .frontMatter(let first) = analysis.lines[0].kind, first.isFirst,
+              analysis.lineIndex(at: index) == 0, !revealed.contains(0) else { return false }
+        frontMatterCollapsed.toggle()
+        var last = 0
+        while last + 1 < analysis.lines.count, case .frontMatter = analysis.lines[last + 1].kind { last += 1 }
+        storage.beginEditing()
+        MarkdownStyler.apply(analysis, to: storage, lines: 0...last, mode: mode, revealed: revealed, images: imageContext,
+                             collapsesFrontMatter: frontMatterCollapsed)
+        storage.endEditing()
+        return true
     }
 
     /// The images this document shows, loaded once.
@@ -82,7 +134,7 @@ final class Editor: NSObject {
             let text = storage.string as NSString
             storage.beginEditing()
             for (index, line) in analysis.lines.enumerated() where MarkdownStyler.imagePath(in: text.substring(with: line.range)) != nil {
-                MarkdownStyler.apply(analysis, to: storage, lines: index...index, mode: mode, revealed: revealed, images: imageContext)
+                MarkdownStyler.apply(analysis, to: storage, lines: index...index, mode: mode, revealed: revealed, images: imageContext, collapsesFrontMatter: frontMatterCollapsed)
             }
             storage.endEditing()
         }
@@ -156,8 +208,9 @@ final class Editor: NSObject {
 
     private func restyleAll() {
         analysis = MarkdownAnalysis(storage.string)
+        outline.update(from: analysis, text: storage.string as NSString, cursor: textView.selectedRange().location)
         storage.beginEditing()
-        MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed, images: imageContext)
+        MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed, images: imageContext, collapsesFrontMatter: frontMatterCollapsed)
         storage.endEditing()
     }
 
@@ -166,7 +219,7 @@ final class Editor: NSObject {
         if let (updated, lines) = analysis.updated(afterEditing: edited, changeInLength: delta, in: storage.string) {
             analysis = updated
             revealed = linesTouching(edited)
-            MarkdownStyler.apply(analysis, to: storage, lines: lines, mode: mode, revealed: revealed, images: imageContext)
+            MarkdownStyler.apply(analysis, to: storage, lines: lines, mode: mode, revealed: revealed, images: imageContext, collapsesFrontMatter: frontMatterCollapsed)
             scheduleFullCheck()
             return
         }
@@ -197,11 +250,11 @@ final class Editor: NSObject {
         }
 
         guard isLocal else {
-            MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed, images: imageContext)
+            MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed, images: imageContext, collapsesFrontMatter: frontMatterCollapsed)
             return
         }
         MarkdownStyler.apply(analysis, to: storage, lines: blockLines(around: firstEdited...lastEdited),
-                             mode: mode, revealed: revealed, images: imageContext)
+                             mode: mode, revealed: revealed, images: imageContext, collapsesFrontMatter: frontMatterCollapsed)
     }
 
     private func linesTouching(_ range: NSRange) -> Set<Int> {
@@ -239,7 +292,7 @@ final class Editor: NSObject {
         analysis = full
         storage.beginEditing()
         for line in changed {
-            MarkdownStyler.apply(full, to: storage, lines: blockLines(around: line...line), mode: mode, revealed: revealed, images: imageContext)
+            MarkdownStyler.apply(full, to: storage, lines: blockLines(around: line...line), mode: mode, revealed: revealed, images: imageContext, collapsesFrontMatter: frontMatterCollapsed)
         }
         storage.endEditing()
     }
@@ -267,7 +320,7 @@ final class Editor: NSObject {
         revealed = now
         storage.beginEditing()
         for line in changed {
-            MarkdownStyler.apply(analysis, to: storage, lines: line...line, mode: mode, revealed: revealed, images: imageContext)
+            MarkdownStyler.apply(analysis, to: storage, lines: line...line, mode: mode, revealed: revealed, images: imageContext, collapsesFrontMatter: frontMatterCollapsed)
         }
         storage.endEditing()
     }
@@ -399,6 +452,7 @@ extension Editor: NSTextStorageDelegate {
         guard editedMask.contains(.editedCharacters) else { return }
         restyle(afterEditing: editedRange, changeInLength: delta)
         stats.textDidChange { [storage] in storage.string }
+        scheduleOutlineUpdate()
         if delta != 0 { DispatchQueue.main.async { [weak self] in self?.textView.textDidChangeLength() } }
     }
 }
@@ -408,6 +462,7 @@ extension Editor: NSTextViewDelegate {
         updateRevealedLines()
         formatting.update(text: storage.string as NSString, selection: textView.selectedRange(), analysis: analysis)
         updateFocus()
+        outline.updateCurrent(cursor: textView.selectedRange().location)
         if Preferences.typewriterMode {
             DispatchQueue.main.async { [weak self] in self?.centerCursorIfTypewriter() }   // after the new line is laid out
         }

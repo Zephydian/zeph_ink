@@ -12,6 +12,8 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
 
     let workspace = Workspace()
     let splitView = PaneSplitView()
+    /// Find in All Documents, for this window's sidebar.
+    let search = DocumentSearch()
     /// Set while the window's close button works through its tabs one by one.
     private var isClosingAllTabs = false
 
@@ -166,6 +168,33 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         workspace.focusPane(offset: -1)
     }
 
+    /// File → Quick Open (⌘⇧O).
+    @objc func quickOpen(_ sender: Any?) {
+        if let window { QuickOpen.show(in: window) }
+    }
+
+    /// View → Show Outline (⌥⌘O): the focused document's headings in the sidebar.
+    @objc func toggleOutline(_ sender: Any?) {
+        workspace.sidebar = workspace.sidebar == .outline ? nil : .outline
+    }
+
+    /// Edit → Find → Find in All Documents (⌥⇧⌘F): search every open document from the sidebar.
+    @objc func findInAllDocuments(_ sender: Any?) {
+        if let selected = workspace.selectedTab?.editor.textView, selected.selectedRange().length > 0, selected.selectedRange().length < 100 {
+            search.query = (selected.string as NSString).substring(with: selected.selectedRange())
+        }
+        workspace.sidebar = .search
+        search.run()
+    }
+
+    /// Shows a match: brings its window forward, its tab into the focused pane, and selects it.
+    static func reveal(_ range: NSRange, in document: MarkdownDocument) {
+        guard let controller = containing(document), let tab = controller.workspace.tab(for: document) else { return }
+        controller.workspace.select(document)
+        controller.window?.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.async { tab.editor.reveal(range) }   // after the tab is in its pane
+    }
+
     /// File → Convert to Markdown: saves a `.md` copy of the focused `.txt` file and opens it in its place.
     @objc func convertToMarkdown(_ sender: Any?) {
         guard let document = workspace.selectedTab?.document, document.isPlainText else { return }
@@ -201,6 +230,9 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
             return workspace.isSplit
         case #selector(focusNextPane(_:)), #selector(focusPreviousPane(_:)):
             return workspace.isSplit
+        case #selector(toggleOutline(_:)):
+            menuItem.title = workspace.sidebar == .outline ? "Hide Outline" : "Show Outline"
+            return true
         case #selector(convertToMarkdown(_:)):
             return selected?.document.isPlainText == true && selected?.document.fileURL != nil
         default:

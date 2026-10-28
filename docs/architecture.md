@@ -153,6 +153,14 @@ Every formatting action only inserts or removes markdown characters:
 - Words are counted the way macOS splits text into words, so markdown symbols and link addresses don't count. The count runs a quarter second after typing pauses, and again for the selection.
 - Word-count goals are kept per file path in the defaults (`WordGoals`), never in the file.
 
+## Front matter, outline, search and Quick Open
+
+- **Front matter.** A YAML block at the top of a file (a `---` line, then lines up to the next `---` or `...`) isn't markdown. `MarkdownAnalysis` finds it first and gives the parser empty lines in its place, so the closing `---` can't turn the YAML into a heading, and the lines after it keep their numbers. Its lines become `.frontMatter` and draw as a card: keys in bold, a "Document info" header in place of the opening `---`. Clicking the header folds the card. Edits near the top always re-parse the whole text.
+- **Sidebar** (`Workspace.sidebar`) sits beside the panes, in two modes:
+  - **Outline** lists each editor's `Outline`, the headings from its analysis without their symbols. It refreshes a moment after typing and follows the cursor's heading. Clicking one calls `Editor.reveal`.
+  - **Search** (`DocumentSearch`) looks through every open document in every window as you type (case- and accent-insensitive, up to 200 matches per document). Clicking a match brings its window and tab forward and selects it.
+- **Quick Open** is a sheet listing open documents and `NSDocumentController.recentDocumentURLs`, ranked by a fuzzy match. A name's letters must appear in order, and matches at the start of a word or in a row score higher.
+
 ## Focus, typewriter and synced scrolling
 
 These are switches in the defaults, toggled from the View menu, and each editor follows them:

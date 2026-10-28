@@ -53,12 +53,18 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
         context.saveGState()
         clipOutPageBreaks(frame: frame, origin: point, context: context)
         if let code = decoration.code { drawCodeBox(code, in: frame, context: context) }
+        if let part = decoration.frontMatter, !decoration.isCollapsed || decoration.frontMatterHeader {
+            // Folded, the header is the whole card.
+            let shape = decoration.isCollapsed ? MarkdownAnalysis.CodeLine(isFence: true, isFirst: true, isLast: true) : part
+            drawCodeBox(shape, in: frame, context: context)
+        }
         if decoration.quoteDepth > 0 { drawQuoteBars(decoration.quoteDepth, in: frame, context: context) }
         context.restoreGState()
         if decoration.isDivider { drawDivider(in: frame, context: context) }
         super.draw(at: point, in: context)
         if let bullet = decoration.bullet { drawBullet(at: bullet, origin: point, context: context) }
         if let task = decoration.task { drawCheckbox(at: task, isChecked: decoration.isChecked, origin: point, context: context) }
+        if decoration.frontMatterHeader { drawFrontMatterHeader(in: frame, isCollapsed: decoration.isCollapsed, context: context) }
         if let rect = imageRect(for: decoration)?.offsetBy(dx: point.x, dy: point.y) {
             if let image = decoration.image {
                 drawImage(image, in: rect, context: context)
@@ -66,6 +72,18 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
                 drawAccessPrompt(in: rect, context: context)
             }
         }
+    }
+
+    /// The front matter card's header: a chevron and "Document info". Clicking it folds the card.
+    private func drawFrontMatterHeader(in frame: CGRect, isCollapsed: Bool, context: CGContext) {
+        let graphics = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = graphics
+        let text = NSAttributedString(string: (isCollapsed ? "▸  " : "▾  ") + "DOCUMENT INFO", attributes: [
+            .font: NSFont.systemFont(ofSize: 10.5, weight: .semibold), .foregroundColor: Theme.inkSecondary, .kern: 0.6,
+        ])
+        text.draw(at: CGPoint(x: frame.minX + 16, y: frame.midY - text.size().height / 2))
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     // MARK: - Images

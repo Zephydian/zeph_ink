@@ -115,6 +115,7 @@ final class ZephTextView: NSTextView {
         let point = convert(event.locationInWindow, from: nil)
         let index = characterIndexForInsertion(at: point)
         if event.modifierFlags.contains(.command), openLink(at: index) { return }
+        if editor?.toggleFrontMatter(ifHeaderAt: index) == true { return }
         if isOnImageAccessPrompt(point) {
             editor?.requestImageAccess()
             return

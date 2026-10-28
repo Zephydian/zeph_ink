@@ -31,6 +31,10 @@ nonisolated final class LineDecoration: NSObject {
     var imageSize: CGSize = .zero
     /// An image the person needs to allow Zeph#Ink to read: a prompt to click instead.
     var imageNeedsAccess = false
+    /// A line of the front matter card, and whether it's the card's header (and folded).
+    var frontMatter: MarkdownAnalysis.CodeLine?
+    var frontMatterHeader = false
+    var isCollapsed = false
 
     static let accessPromptHeight: CGFloat = 44
 }
@@ -59,7 +63,7 @@ enum MarkdownStyler {
 
     /// Styles the given lines (indices into `analysis.lines`).
     static func apply(_ analysis: MarkdownAnalysis, to storage: NSTextStorage, lines: ClosedRange<Int>,
-                      mode: Mode, revealed: Set<Int> = [], images: Images? = nil) {
+                      mode: Mode, revealed: Set<Int> = [], images: Images? = nil, collapsesFrontMatter: Bool = false) {
         guard !analysis.lines.isEmpty else { return }
         let lines = lines.clamped(to: 0...(analysis.lines.count - 1))
         let first = analysis.lines[lines.lowerBound].fullRange.location
@@ -84,13 +88,15 @@ enum MarkdownStyler {
 
         for index in lines {
             let hidesSymbols = symbols == .clean && !revealed.contains(index)
-            styleLine(analysis.lines[index], spans: spansByLine[index] ?? [], in: storage, hidesSymbols: hidesSymbols, images: images)
+            styleLine(analysis.lines[index], spans: spansByLine[index] ?? [], in: storage, hidesSymbols: hidesSymbols, images: images,
+                      collapsesFrontMatter: collapsesFrontMatter)
         }
     }
 
     static func applyAll(_ analysis: MarkdownAnalysis, to storage: NSTextStorage, mode: Mode, revealed: Set<Int> = [],
-                         images: Images? = nil) {
-        apply(analysis, to: storage, lines: 0...max(analysis.lines.count - 1, 0), mode: mode, revealed: revealed, images: images)
+                         images: Images? = nil, collapsesFrontMatter: Bool = false) {
+        apply(analysis, to: storage, lines: 0...max(analysis.lines.count - 1, 0), mode: mode, revealed: revealed, images: images,
+              collapsesFrontMatter: collapsesFrontMatter)
     }
 
     private static let imageLine = try! NSRegularExpression(pattern: #"^[ \t]*!\[[^\]]*\]\(<?([^)\s>]+)>?(?:[ \t]+"[^"]*")?\)[ \t]*$"#)
@@ -113,9 +119,11 @@ enum MarkdownStyler {
 
     // MARK: - One line
 
+    private static let frontMatterKey = try! NSRegularExpression(pattern: #"^[ \t]*[^:#\s][^:]*:"#)
+
     private static func styleLine(_ line: MarkdownAnalysis.Line, spans: [MarkdownAnalysis.Span],
-                                  in storage: NSTextStorage, hidesSymbols: Bool, images: Images?) {
-        var block = BlockStyle(line, hidesSymbols: hidesSymbols)
+                                  in storage: NSTextStorage, hidesSymbols: Bool, images: Images?, collapsesFrontMatter: Bool) {
+        var block = BlockStyle(line, hidesSymbols: hidesSymbols, collapsesFrontMatter: collapsesFrontMatter)
         // An image alone on its line shows below it, and in Clean mode stands in for its markdown.
         var showsImage = false
         if let images, line.kind == .body, let path = imagePath(in: (storage.string as NSString).substring(with: line.range)),
@@ -127,6 +135,14 @@ enum MarkdownStyler {
         // Every boundary where an inline style starts or stops, then each run between two boundaries.
         var runs: [Run] = spans.map { Run(range: $0.range, kind: .inline($0.style)) }
         if showsImage && hidesSymbols { runs.append(Run(range: line.range, kind: .inline(.marker))) }
+        if case .frontMatter(let part) = line.kind {
+            if hidesSymbols && collapsesFrontMatter && !part.isFirst {
+                runs.append(Run(range: line.range, kind: .inline(.marker)))   // folded away
+            } else if !part.isFence,
+                      let key = frontMatterKey.firstMatch(in: storage.string, range: line.range)?.range {
+                runs.append(Run(range: key, kind: .inline(.strong)))
+            }
+        }
         runs += line.markers.map { Run(range: $0, kind: .inline(.marker)) }
         if let list = line.list {
             if list.bullet == nil { runs.append(Run(range: list.marker, kind: .number)) }
@@ -215,7 +231,7 @@ enum MarkdownStyler {
         var decoration: LineDecoration?
         let hidesSymbols: Bool
 
-        init(_ line: MarkdownAnalysis.Line, hidesSymbols: Bool) {
+        init(_ line: MarkdownAnalysis.Line, hidesSymbols: Bool, collapsesFrontMatter: Bool = false) {
             self.hidesSymbols = hidesSymbols
             font = FontSpec(family: .serif, size: Theme.bodySize)
             color = Theme.ink
@@ -259,6 +275,25 @@ enum MarkdownStyler {
                 if hidesSymbols && line.alignment != nil { lineHeight = 2 }   // the blank lines alignment tags need
             case .alignTag:
                 if hidesSymbols { lineHeight = 2 }
+            case .frontMatter(let part):
+                // A card: small interface type, a header in place of the opening `---`.
+                font = FontSpec(family: .ui, size: Theme.bodySize * 0.76)
+                color = Theme.inkSecondary
+                lineHeight = Theme.bodySize * 1.25
+                paragraph.firstLineHeadIndent = 16
+                paragraph.headIndent = 16
+                paragraph.tailIndent = -16
+                decoration.frontMatter = part
+                if hidesSymbols {
+                    decoration.isCollapsed = collapsesFrontMatter
+                    if part.isFirst {
+                        lineHeight = Theme.bodySize * 1.8
+                        decoration.frontMatterHeader = true
+                    } else if part.isLast || collapsesFrontMatter {
+                        lineHeight = part.isLast ? 8 : 0.5
+                    }
+                }
+                isDecorated = true
             case .body:
                 break
             }
@@ -406,7 +441,7 @@ enum MarkdownStyler {
 /// A font described by what it's for, so inline styles can adjust it (bold, italic, code) and the
 /// result can be cached.
 private struct FontSpec: Hashable {
-    enum Family { case serif, mono, smallCaps }
+    enum Family { case serif, mono, smallCaps, ui }
 
     var family: Family
     var size: CGFloat
@@ -422,6 +457,7 @@ private struct FontSpec: Hashable {
         case .serif: font = Fonts.serif(size: size, weight: weight, italic: italic)
         case .mono: font = Fonts.mono(size: size, weight: weight)
         case .smallCaps: font = Fonts.ui(size: size, weight: weight >= 700 ? .bold : .semibold, smallCaps: true)
+        case .ui: font = Fonts.ui(size: size, weight: weight >= 700 ? .semibold : .regular)
         }
         Self.cache[self] = font
         return font

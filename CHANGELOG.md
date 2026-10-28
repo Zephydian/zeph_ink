@@ -36,4 +36,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Themes: Light, Sepia (warm tan), Dark (neutral charcoal) and Midnight (deep blue), or System to follow the Mac. White Page keeps the page white in the darker themes.
 - Pasting formatted text from a web page, Word, Google Docs or Pages turns it into markdown (headings, bold, italic, links, lists, quotes, code). Edit → Paste as Plain Text (⌘⇧V) pastes the words only.
 - View → Bigger Text (⌘+), Smaller Text (⌘−) and Actual Size. Increase Contrast makes faded markdown symbols darker, and Reduce Motion turns off animations.
+- Front matter (a YAML block at the top of a file) shows as a tidy "Document info" card; click its header to fold it.
+- View → Show Outline (⌥⌘O): the document's headings in a sidebar. Click one to jump there.
+- Edit → Find → Find in All Documents (⌥⇧⌘F): search every open document from the sidebar.
+- File → Quick Open (⌘⇧O): type part of a file's name to jump to an open document or a recent file.
 - Settings (⌘,): theme, accent color (the Mac's, Zephydian Ink, or a fixed color), margins (narrow, normal, wide; also under View → Margins), markdown symbols, and whether new documents are markdown or plain text.

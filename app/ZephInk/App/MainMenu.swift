@@ -42,6 +42,7 @@ enum MainMenu {
         menu.addItem(item("New", #selector(NSDocumentController.newDocument(_:)), "n"))
         menu.addItem(item("New Tab", #selector(NSDocumentController.newDocument(_:)), "t"))
         menu.addItem(item("Open…", #selector(NSDocumentController.openDocument(_:)), "o"))
+        menu.addItem(item("Quick Open…", #selector(WorkspaceWindowController.quickOpen(_:)), "o", [.command, .shift]))
         // AppKit fills in this submenu because it holds the Clear Menu item.
         let recent = NSMenu(title: "Open Recent")
         recent.addItem(item("Clear Menu", #selector(NSDocumentController.clearRecentDocuments(_:))))
@@ -91,6 +92,8 @@ enum MainMenu {
             entry.tag = action.rawValue
             menu.addItem(entry)
         }
+        menu.addItem(.separator())
+        menu.addItem(item("Find in All Documents…", #selector(WorkspaceWindowController.findInAllDocuments(_:)), "f", [.command, .option, .shift]))
         return menu
     }
 
@@ -130,6 +133,7 @@ enum MainMenu {
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
         menu.addItem(item("Hide Toolbar", #selector(AppDelegate.toggleToolbar(_:)), "t", [.command, .option]))
+        menu.addItem(item("Show Outline", #selector(WorkspaceWindowController.toggleOutline(_:)), "o", [.command, .option]))
         menu.addItem(item("Bigger Text", #selector(AppDelegate.makeTextBigger(_:)), "+"))
         menu.addItem(item("Smaller Text", #selector(AppDelegate.makeTextSmaller(_:)), "-"))
         menu.addItem(item("Actual Size", #selector(AppDelegate.makeTextActualSize(_:))))

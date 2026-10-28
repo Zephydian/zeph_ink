@@ -25,10 +25,16 @@ struct WorkspaceView: View {
                         .id(accent)
                     Rectangle().fill(Color(nsColor: Theme.chromeLine)).frame(height: 1)
                 }
-                if workspace.panes.isEmpty {
-                    Color(nsColor: Theme.desk)
-                } else {
-                    PaneSplitRepresentable(splitView: controller.splitView, panes: panes, focused: workspace.focusedPaneID)
+                HStack(spacing: 0) {
+                    if workspace.sidebar != nil {
+                        Sidebar(workspace: workspace, controller: controller)
+                        Rectangle().fill(Color(nsColor: Theme.chromeLine)).frame(width: 1)
+                    }
+                    if workspace.panes.isEmpty {
+                        Color(nsColor: Theme.desk)
+                    } else {
+                        PaneSplitRepresentable(splitView: controller.splitView, panes: panes, focused: workspace.focusedPaneID)
+                    }
                 }
                 if let tab = workspace.selectedTab {
                     Rectangle().fill(Color(nsColor: Theme.chromeLine)).frame(height: 1)
