@@ -1,0 +1,33 @@
+# Builds the app (Release, as shipped) and runs the tests on every pull request and every push to main.
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the Xcode project
+        run: cd app && xcodegen
+      # Warnings count as errors: project.yml sets that for the app and its tests.
+      - name: Build Release
+        run: |
+          xcodebuild -project app/ZephInk.xcodeproj -scheme ZephInk -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath app/build build
+      - name: Test
+        run: |
+          xcodebuild -project app/ZephInk.xcodeproj -scheme ZephInk -configuration Debug \
+            -destination 'platform=macOS' -derivedDataPath app/build test

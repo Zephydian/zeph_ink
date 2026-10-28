@@ -1,0 +1,52 @@
+# ── Private to the owner and Claude (kept on this Mac only, never committed) ──
+/CLAUDE.md
+/plan.md
+.claude/
+CLAUDE.local.md
+
+# ── macOS ──
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ── Xcode ──
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+
+# ── Swift Package Manager ──
+.build/
+.swiftpm/
+Packages/
+
+# ── Release artifacts (uploaded to GitHub Releases, not committed) ──
+*.dmg
+*.zip
+dist/
+
+# ── Signing secrets (never commit these) ──
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+.env
+.env.*
+
+# ── Editors ──
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# ── XcodeGen output (regenerate with: cd app && xcodegen) ──
+app/ZephInk.xcodeproj/

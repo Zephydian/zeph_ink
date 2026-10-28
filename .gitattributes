@@ -1,0 +1,2 @@
+# Test files are checked byte for byte: never change their line endings or encoding.
+app/ZephInkTests/Fixtures/** -text

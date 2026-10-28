@@ -1,0 +1,128 @@
+# ZephInk Xcode project spec.
+#
+# This file is the SOURCE OF TRUTH for the Xcode project. XcodeGen turns it into
+# ZephInk.xcodeproj (which is generated and git-ignored):
+#
+#     brew install xcodegen      # once
+#     cd app && xcodegen         # after changing this file
+#
+# ⚠️ Change build settings HERE, not in Xcode's UI. Edits made in Xcode's
+# settings screens are overwritten the next time the project is generated.
+# (Adding/removing .swift files is fine anywhere: the ZephInk/ folder is synced.)
+
+name: ZephInk
+
+options:
+  bundleIdPrefix: com.zephydian
+  projectFormat: xcode16_0          # opens in Xcode 16+ and on GitHub's build machines
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "14.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor   # UI code runs on the main thread by default
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    MARKETING_VERSION: 0.1.0                   # the version users see
+    CURRENT_PROJECT_VERSION: 1                 # build number, bump every release
+
+packages:
+  # The only third-party package (Apache 2.0): reads markdown's structure for styling, word
+  # counts and PDF export. It's compiled into the app, so nothing goes online at runtime.
+  Markdown:
+    url: https://github.com/swiftlang/swift-markdown
+    exactVersion: 0.9.0
+
+targets:
+  ZephInk:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: ZephInk
+        type: syncedFolder
+    dependencies:
+      - package: Markdown
+    info:
+      path: Config/Info.plist
+      properties:
+        CFBundleName: Zeph#Ink
+        CFBundleDisplayName: Zeph#Ink
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: "© 2026 ahmastan. MIT License."
+        NSPrincipalClass: NSApplication
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown document
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Default
+            LSItemContentTypes: [net.daringfireball.markdown]
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).MarkdownDocument
+        # Declares markdown for Macs that don't know it yet (the system's own declaration wins where it exists).
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown document
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [md, markdown]
+              public.mime-type: [text/markdown]
+    entitlements:
+      path: Config/ZephInk.entitlements
+      # Sandboxed, with no network entitlement: Zeph#Ink can't go online. It opens and saves only the
+      # files the person picks (and their autosaves and versions, which macOS handles).
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-write: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zephydian.zephink
+        PRODUCT_NAME: Zeph#Ink                 # the app's name: Zeph#Ink.app
+        PRODUCT_MODULE_NAME: ZephInk           # code, repo and bundle ID use ZephInk
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"                # "Sign to Run Locally" (free, no Apple account)
+        DEVELOPMENT_TEAM: ""
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: YES                  # Color(.page), NSColor(resource: .ink)
+        ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+        COMBINE_HIDPI_IMAGES: YES
+        DEAD_CODE_STRIPPING: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        # Zero warnings, always. Set here rather than on the command line, which would also reach
+        # swift-markdown (Xcode builds packages with warnings suppressed, and the two flags clash).
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+      configs:
+        # Release apps ship without debug symbols (they stay in the separate .dSYM next to the app).
+        Release:
+          DEPLOYMENT_POSTPROCESSING: YES
+          STRIP_INSTALLED_PRODUCT: YES
+          STRIP_STYLE: non-global
+    scheme:
+      testTargets: [ZephInkTests]
+
+  ZephInkTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: ZephInkTests
+        excludes: [Fixtures]
+      - path: ZephInkTests/Fixtures
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: ZephInk
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zephydian.zephink.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Zeph#Ink.app/Contents/MacOS/Zeph#Ink
+        BUNDLE_LOADER: $(TEST_HOST)
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
