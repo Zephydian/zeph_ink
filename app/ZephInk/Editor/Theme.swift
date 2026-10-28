@@ -16,6 +16,8 @@ nonisolated enum Theme {
     static let line = named("Line")
     static let hover = named("Hover")
     static let codeBackground = named("CodeBackground")
+    /// Behind `==highlighted==` text, like a marker pen.
+    static let highlight = named("Highlight")
     /// Zephydian Ink, the fixed accent.
     static let accent = named("AccentColor")
     static let accentSoft = named("AccentSoft")

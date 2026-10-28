@@ -341,6 +341,7 @@ enum MarkdownStyler {
                 spec.italic = false
                 attributes[.backgroundColor] = Theme.codeBackground
             }
+            if style.contains(.highlight) { attributes[.backgroundColor] = Theme.highlight }
             if style.contains(.strikethrough) || isDone {
                 attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
                 attributes[.strikethroughColor] = isDone ? Theme.marker : Theme.inkSecondary

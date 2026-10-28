@@ -25,3 +25,4 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Links: ⌘K adds or edits a link in a small popover, and ⌘-click opens one.
 - Images: add them from the toolbar or by dropping them on the page. They're copied into an "assets" folder next to the document and shown on the page. Zeph#Ink asks once per folder for permission.
 - In `.txt` files, the formatting tools are dimmed and a Convert to Markdown button appears.
+- Highlight (`==text==`, ⌘⇧H), Clear Formatting, and toolbar buttons for undo, redo and the emoji picker.

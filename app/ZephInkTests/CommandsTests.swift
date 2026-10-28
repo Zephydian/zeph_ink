@@ -140,4 +140,22 @@ struct CommandsTests {
         #expect(MarkdownCommands.span(of: .bold, at: NSRange(location: 0, length: 0), in: text, analysis: analysis) == nil)
         #expect(MarkdownCommands.span(of: .italic, at: NSRange(location: 5, length: 0), in: text, analysis: analysis) == nil)
     }
+
+    // MARK: Highlight and clearing
+
+    @Test func highlightIsFoundAndToggled() {
+        #expect(run("a [word] b", toggle(.highlight)) == "a ==[word]== b")
+        #expect(run("a ==wo|rd== b", toggle(.highlight)) == "a wo|rd b")
+        let text = "x ==yes== `==no==` =not=" as NSString
+        let highlights = MarkdownAnalysis(text as String).spans.filter { $0.style == .highlight }.map { text.substring(with: $0.range) }
+        #expect(highlights == ["yes"])
+    }
+
+    @Test func clearFormattingKeepsTheWords() {
+        let clear: (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result = {
+            MarkdownCommands.clearFormatting(text: $0, selection: $1, analysis: $2)
+        }
+        #expect(run("## A **bo|ld** [link](https://x.com)", clear) == "A bo|ld link")
+        #expect(run("- [one *two*\n> three]", clear) == "[one two\nthree]")
+    }
 }

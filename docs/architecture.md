@@ -119,6 +119,8 @@ Every formatting action only inserts or removes markdown characters:
 - **`FormattingState`** (`@Observable`, one per editor) holds what's on at the selection: paragraph style, inline styles, list kind, whether it's in a link, and page/source. The editor updates it on every selection change.
 - **`Toolbar`** (SwiftUI, under the tabs) calls the same actions on the focused editor and reads its `FormattingState`. View → Hide Toolbar (⌘⌥T) stores `showsToolbar` in the defaults.
 
+**Highlight** (`==text==`) isn't standard markdown, so swift-markdown leaves it as text. `MarkdownAnalysis` finds it with a pattern on text lines, outside code spans, and adds the same spans and markers as for bold. **Clear Formatting** removes the selected lines' block markers and every inline marker inside the selection.
+
 **Links.** ⌘K opens a popover (`LinkEditor`) to add a link, or to change the one the cursor is in. ⌘-click opens a link with a scheme in its app.
 
 **Images.** Format → Image… or dropping image files onto a markdown document copies them into an `assets` folder next to the document and inserts `![name](assets/name.png)` on its own line. A name that's taken gets a number.

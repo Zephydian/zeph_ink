@@ -11,6 +11,13 @@ extension ZephTextView {
     @objc func toggleItalic(_ sender: Any?) { toggle(.italic) }
     @objc func toggleStrikethrough(_ sender: Any?) { toggle(.strikethrough) }
     @objc func toggleInlineCode(_ sender: Any?) { toggle(.code) }
+    @objc func toggleHighlight(_ sender: Any?) { toggle(.highlight) }
+
+    /// Format → Clear Formatting: the words stay, the markdown around them goes.
+    @objc func clearFormatting(_ sender: Any?) {
+        guard let editor else { return }
+        apply(MarkdownCommands.clearFormatting(text: string as NSString, selection: selectedRange(), analysis: editor.analysis))
+    }
 
     private func toggle(_ inline: MarkdownCommands.Inline) {
         guard let editor else { return }
@@ -142,6 +149,7 @@ extension ZephTextView {
         case #selector(toggleItalic(_:)): isOn = state.inline.contains(.italic)
         case #selector(toggleStrikethrough(_:)): isOn = state.inline.contains(.strikethrough)
         case #selector(toggleInlineCode(_:)): isOn = state.inline.contains(.code)
+        case #selector(toggleHighlight(_:)): isOn = state.inline.contains(.highlight)
         case #selector(setTitleStyle(_:)): isOn = state.paragraph == .title
         case #selector(setHeadingStyle(_:)): isOn = state.paragraph == .heading
         case #selector(setSubheadingStyle(_:)): isOn = state.paragraph == .subheading
@@ -160,6 +168,7 @@ extension ZephTextView {
 
     static let formattingActions: Set<Selector> = [
         #selector(toggleBold(_:)), #selector(toggleItalic(_:)), #selector(toggleStrikethrough(_:)), #selector(toggleInlineCode(_:)),
+        #selector(toggleHighlight(_:)), #selector(clearFormatting(_:)),
         #selector(setTitleStyle(_:)), #selector(setHeadingStyle(_:)), #selector(setSubheadingStyle(_:)),
         #selector(setSmallHeadingStyle(_:)), #selector(setBodyStyle(_:)), #selector(toggleQuote(_:)), #selector(toggleCodeBlock(_:)),
         #selector(toggleBulletedList(_:)), #selector(toggleNumberedList(_:)), #selector(toggleChecklist(_:)),

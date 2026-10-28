@@ -96,6 +96,8 @@ nonisolated struct MarkdownAnalysis {
         static let link = InlineStyle(rawValue: 1 << 4)
         /// Markdown symbols such as `**` or `](url)`: hidden or faded.
         static let marker = InlineStyle(rawValue: 1 << 5)
+        /// `==text==`: not standard markdown (swift-markdown doesn't know it), found by `Builder`.
+        static let highlight = InlineStyle(rawValue: 1 << 6)
     }
 
     var lines: [Line] = []
@@ -319,8 +321,9 @@ nonisolated private struct Builder {
         if isBullet { lines[line].markers.append(marker) }
     }
 
-    /// Blank lines, and the `>` markers of quoted lines.
+    /// Blank lines, the `>` markers of quoted lines, and highlights.
     mutating func finish() {
+        markHighlights()
         for index in lines.indices {
             let line = lines[index]
             if line.kind == .body, line.list == nil,
@@ -329,6 +332,25 @@ nonisolated private struct Builder {
             }
             if line.quoteDepth > 0, let quote = match(Patterns.quoteMarker, in: line.range) {
                 lines[index].markers.insert(quote, at: 0)
+            }
+        }
+    }
+
+    /// Finds `==text==` on text lines, outside code. The parser leaves the `=` signs as plain text.
+    private mutating func markHighlights() {
+        let code = spans.filter { $0.style == .code }.map(\.range)
+        for line in lines {
+            switch line.kind {
+            case .code, .table, .divider, .blank: continue
+            default: break
+            }
+            guard line.range.length >= 5 else { continue }
+            for match in Patterns.highlight.matches(in: text as String, range: line.range) {
+                let whole = match.range
+                guard !code.contains(where: { NSIntersectionRange($0, whole).length > 0 }) else { continue }
+                spans.append(.init(range: NSRange(location: whole.location + 2, length: whole.length - 4), style: .highlight))
+                spans.append(.init(range: NSRange(location: whole.location, length: 2), style: .marker))
+                spans.append(.init(range: NSRange(location: NSMaxRange(whole) - 2, length: 2), style: .marker))
             }
         }
     }
@@ -359,6 +381,7 @@ nonisolated private enum Patterns {
     static let fenceLine = regex(#"^[ \t>]*(?:```|~~~)[ \t]*$"#)
     static let listMarker = regex(#"^(?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$)"#)
     static let taskBox = regex(#"^\[[ xX]\][ \t]?"#)
+    static let highlight = regex(#"==(?=[^\s=])(?:[^=]|=(?!=))*?(?<=[^\s=])=="#)
     static let quoteMarker = regex(#"^(?:[ \t]*>[ \t]?)+"#)
 
     private static func regex(_ pattern: String) -> NSRegularExpression {

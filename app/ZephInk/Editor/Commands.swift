@@ -21,13 +21,14 @@ nonisolated enum MarkdownCommands {
     // MARK: - Inline styles
 
     enum Inline: CaseIterable {
-        case bold, italic, strikethrough, code
+        case bold, italic, strikethrough, highlight, code
 
         var marker: String {
             switch self {
             case .bold: "**"
             case .italic: "*"
             case .strikethrough: "~~"
+            case .highlight: "=="
             case .code: "`"
             }
         }
@@ -37,6 +38,7 @@ nonisolated enum MarkdownCommands {
             case .bold: .strong
             case .italic: .emphasis
             case .strikethrough: .strikethrough
+            case .highlight: .highlight
             case .code: .code
             }
         }
@@ -87,6 +89,41 @@ nonisolated enum MarkdownCommands {
         return Result(edits: [Edit(range: NSRange(location: NSMaxRange(trimmed), length: 0), replacement: marker),
                               Edit(range: NSRange(location: trimmed.location, length: 0), replacement: marker)],
                       selection: NSRange(location: trimmed.location + length, length: trimmed.length))
+    }
+
+    // MARK: - Clearing
+
+    /// Takes the markdown off the selected lines (or the line the cursor is on): heading, quote and
+    /// list markers, and the symbols of bold, italic, links and the rest. The words stay.
+    static func clearFormatting(text: NSString, selection: NSRange, analysis: MarkdownAnalysis) -> Result {
+        let lines = lines(touching: selection, in: text)
+        guard let first = lines.first, let last = lines.last else { return Result(edits: [], selection: selection) }
+        let region = selection.length > 0 ? selection : NSRange(location: first.location, length: NSMaxRange(last) - first.location)
+        var edits: [Edit] = []
+        for line in lines {
+            let prefix = prefix(of: text.substring(with: line))
+            if prefix.contentStart > prefix.indent.utf16.count {
+                edits.append(Edit(range: NSRange(location: line.location + prefix.indent.utf16.count,
+                                                 length: prefix.contentStart - prefix.indent.utf16.count), replacement: ""))
+            }
+        }
+        let prefixes = edits.map(\.range)
+        let markers = analysis.spans.filter { span in
+            span.style == .marker && NSIntersectionRange(span.range, region).length == span.range.length
+                && !prefixes.contains { NSIntersectionRange($0, span.range).length > 0 }
+        }
+        edits += Set(markers.map(\.range)).map { Edit(range: $0, replacement: "") }
+        func map(_ position: Int) -> Int {
+            var mapped = position
+            for edit in edits {
+                if position >= NSMaxRange(edit.range) { mapped -= edit.range.length }
+                else if position > edit.range.location { mapped -= position - edit.range.location }
+            }
+            return mapped
+        }
+        let start = map(selection.location), end = map(NSMaxRange(selection))
+        return Result(edits: edits.sorted { $0.range.location > $1.range.location },
+                      selection: NSRange(location: start, length: max(end - start, 0)))
     }
 
     // MARK: - Lines

@@ -127,7 +127,7 @@ struct IncrementalAnalysisTests {
     Last paragraph.
     """
 
-    private static let insertions = ["a", " ", "\n", "\n\n", "**", "*", "`", "# ", "## ", "- ", "> ", "1. ", "- [ ] ", "---", "===", "x\ny", "[link](url)", "  "]
+    private static let insertions = ["a", " ", "\n", "\n\n", "**", "*", "`", "# ", "## ", "- ", "> ", "1. ", "- [ ] ", "---", "===", "x\ny", "[link](url)", "  ", "=="]
 
     @Test(arguments: 0..<300)
     func randomEditMatchesAFullParse(_ seed: Int) throws {

@@ -19,20 +19,31 @@ struct Toolbar: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            StyleMenuButton(editor: editor, isOff: isOff, run: run)
-            Separator()
-            button("B", .serif(.bold), "Bold", "⌘B", "**text**", on: state.inline.contains(.bold)) { $0.toggleBold(nil) }
-            button("I", .serif(.italic), "Italic", "⌘I", "*text*", on: state.inline.contains(.italic)) { $0.toggleItalic(nil) }
-            button("S", .serif(.strikethrough), "Strikethrough", "⌘⇧X", "~~text~~", on: state.inline.contains(.strikethrough)) { $0.toggleStrikethrough(nil) }
-            button("</>", .mono, "Inline code", "⌘E", "`code`", on: state.inline.contains(.code)) { $0.toggleInlineCode(nil) }
-            button("link", .symbol, "Link", "⌘K", "[text](url)", on: state.isInLink) { $0.editLink(nil) }
-            Separator()
-            button("list.bullet", .symbol, "Bulleted list", "⌘⇧8", "- item", on: state.list == .bulleted) { $0.toggleBulletedList(nil) }
-            button("list.number", .symbol, "Numbered list", "⌘⇧7", "1. item", on: state.list == .numbered) { $0.toggleNumberedList(nil) }
-            button("checklist", .symbol, "Checklist", "⌘⇧9", "- [ ] task", on: state.list == .checklist) { $0.toggleChecklist(nil) }
-            button("text.quote", .symbol, "Quote", "⌘⇧.", "> text", on: state.paragraph == .quote) { $0.toggleQuote(nil) }
-            button("minus", .symbol, "Divider", nil, "---", on: false) { $0.insertDivider(nil) }
-            button("photo", .symbol, "Image", nil, "![alt](assets/file.png)", on: false) { $0.insertImage(nil) }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    plainButton("arrow.uturn.backward", "Undo", "⌘Z") { $0.undoManager?.undo() }
+                    plainButton("arrow.uturn.forward", "Redo", "⌘⇧Z") { $0.undoManager?.redo() }
+                    Separator()
+                    StyleMenuButton(editor: editor, isOff: isOff, run: run)
+                    Separator()
+                    button("B", .serif(.bold), "Bold", "⌘B", "**text**", on: state.inline.contains(.bold)) { $0.toggleBold(nil) }
+                    button("I", .serif(.italic), "Italic", "⌘I", "*text*", on: state.inline.contains(.italic)) { $0.toggleItalic(nil) }
+                    button("S", .serif(.strikethrough), "Strikethrough", "⌘⇧X", "~~text~~", on: state.inline.contains(.strikethrough)) { $0.toggleStrikethrough(nil) }
+                    button("highlighter", .symbol, "Highlight", "⌘⇧H", "==text== (a markdown extension: some apps show the = signs)",
+                           on: state.inline.contains(.highlight)) { $0.toggleHighlight(nil) }
+                    button("</>", .mono, "Inline code", "⌘E", "`code`", on: state.inline.contains(.code)) { $0.toggleInlineCode(nil) }
+                    button("link", .symbol, "Link", "⌘K", "[text](url)", on: state.isInLink) { $0.editLink(nil) }
+                    button("eraser", .symbol, "Clear formatting", nil, "removes the markdown, keeps the words", on: false) { $0.clearFormatting(nil) }
+                    Separator()
+                    button("list.bullet", .symbol, "Bulleted list", "⌘⇧8", "- item", on: state.list == .bulleted) { $0.toggleBulletedList(nil) }
+                    button("list.number", .symbol, "Numbered list", "⌘⇧7", "1. item", on: state.list == .numbered) { $0.toggleNumberedList(nil) }
+                    button("checklist", .symbol, "Checklist", "⌘⇧9", "- [ ] task", on: state.list == .checklist) { $0.toggleChecklist(nil) }
+                    button("text.quote", .symbol, "Quote", "⌘⇧.", "> text", on: state.paragraph == .quote) { $0.toggleQuote(nil) }
+                    button("minus", .symbol, "Divider", nil, "---", on: false) { $0.insertDivider(nil) }
+                    button("photo", .symbol, "Image", nil, "![alt](assets/file.png)", on: false) { $0.insertImage(nil) }
+                    plainButton("face.smiling", "Emoji & symbols", "⌃⌘Space") { _ in NSApp.orderFrontCharacterPalette(nil) }
+                }
+            }
             Spacer(minLength: 12)
             if isOff {
                 Button("Convert to Markdown") { controller.convertToMarkdown(nil) }
@@ -59,6 +70,19 @@ struct Toolbar: View {
         guard !isOff else { return }
         action(editor.textView)
         editor.textView.window?.makeFirstResponder(editor.textView)
+    }
+
+    /// A button that works in every document, `.txt` included (undo, redo, emoji).
+    private func plainButton(_ symbol: String, _ name: String, _ shortcut: String, action: @escaping (ZephTextView) -> Void) -> some View {
+        Button {
+            action(editor.textView)
+            editor.textView.window?.makeFirstResponder(editor.textView)
+        } label: {
+            Image(systemName: symbol).font(.system(size: 14))
+        }
+        .buttonStyle(ToolbarButtonStyle(isOn: false, isOff: false))
+        .help("\(name) — \(shortcut)")
+        .accessibilityLabel(name)
     }
 
     private func button(_ label: String, _ look: ButtonLook, _ name: String, _ shortcut: String?, _ syntax: String,
