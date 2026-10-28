@@ -61,6 +61,13 @@ targets:
             LSHandlerRank: Default
             LSItemContentTypes: [net.daringfireball.markdown]
             NSDocumentClass: $(PRODUCT_MODULE_NAME).MarkdownDocument
+            # Lets Convert to Markdown save "name.md" next to an open "name.txt" inside the sandbox.
+            NSIsRelatedItemType: true
+          - CFBundleTypeName: Plain text document
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.plain-text]
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).MarkdownDocument
         # Declares markdown for Macs that don't know it yet (the system's own declaration wins where it exists).
         UTImportedTypeDeclarations:
           - UTTypeIdentifier: net.daringfireball.markdown
@@ -72,10 +79,13 @@ targets:
     entitlements:
       path: Config/ZephInk.entitlements
       # Sandboxed, with no network entitlement: Zeph#Ink can't go online. It opens and saves only the
-      # files the person picks (and their autosaves and versions, which macOS handles).
+      # files the person picks (and their autosaves and versions, which macOS handles), and reopens
+      # them after a relaunch.
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.files.user-selected.read-write: true
+        # Reopens the documents that were open when Zeph#Ink quit (bookmarks this app alone can use).
+        com.apple.security.files.bookmarks.app-scope: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zephydian.zephink

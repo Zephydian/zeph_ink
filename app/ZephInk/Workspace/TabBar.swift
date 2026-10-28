@@ -2,9 +2,23 @@ import AppKit
 import SwiftUI
 
 /// One tab per open document, then a + button for a new one. The empty space drags the window.
+///
+/// Drag a tab along the bar to reorder it. Drag it down onto an editor to open it beside that pane
+/// (the half it would go to is tinted), onto another window to move it there, or anywhere else to
+/// give it a window of its own.
 struct TabBar: View {
     let workspace: Workspace
     let controller: WorkspaceWindowController
+    let height: CGFloat
+
+    @State private var tabFrames: [Tab.ID: CGRect] = [:]
+    @State private var dragged: Tab.ID?
+    /// Where the dragged tab's middle was when the drag began, in the bar.
+    @State private var dragStart: CGFloat = 0
+    @State private var dragTranslation: CGSize = .zero
+
+    /// How far below the bar a tab must be dragged before it leaves it.
+    private var leaveDistance: CGFloat { height * 0.8 }
 
     var body: some View {
         HStack(spacing: 4) {
@@ -13,8 +27,16 @@ struct TabBar: View {
                     ForEach(workspace.tabs) { tab in
                         TabButton(document: tab.document,
                                   isSelected: tab.id == workspace.selectedID,
+                                  isShownElsewhere: tab.id != workspace.selectedID && workspace.pane(showing: tab.id) != nil,
                                   select: { controller.select(tab.document) },
                                   close: { controller.close(tab.document) })
+                            .background(GeometryReader { proxy in
+                                Color.clear.preference(key: TabFrames.self, value: [tab.id: proxy.frame(in: .named(Self.space))])
+                            })
+                            .offset(offset(of: tab.id))
+                            .opacity(dragged == tab.id && isOutside ? 0.5 : 1)
+                            .zIndex(dragged == tab.id ? 1 : 0)
+                            .gesture(drag(tab))
                     }
                 }
             }
@@ -37,9 +59,66 @@ struct TabBar: View {
         }
         .padding(.leading, Theme.trafficLightsWidth)
         .padding(.trailing, 10)
+        .frame(height: height)
+        .coordinateSpace(name: Self.space)
+        .onPreferenceChange(TabFrames.self) { tabFrames = $0 }
         .background(WindowDragArea())
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Open documents")
+    }
+
+    private static let space = "TabBar"
+
+    private var isOutside: Bool { dragTranslation.height > leaveDistance }
+
+    /// The dragged tab follows the pointer: along the bar, or anywhere once it has left it.
+    private func offset(of id: Tab.ID) -> CGSize {
+        guard dragged == id, let frame = tabFrames[id] else { return .zero }
+        let x = dragStart + dragTranslation.width - frame.midX
+        return CGSize(width: x, height: isOutside ? dragTranslation.height : 0)
+    }
+
+    private func drag(_ tab: Tab) -> some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
+            .onChanged { value in
+                if dragged != tab.id {
+                    dragged = tab.id
+                    dragStart = tabFrames[tab.id]?.midX ?? value.startLocation.x
+                    controller.select(tab.document)
+                }
+                dragTranslation = value.translation
+                if isOutside {
+                    controller.tabDragMoved(tab.document, to: NSEvent.mouseLocation)
+                } else {
+                    controller.tabDragMoved(tab.document, to: .init(x: -10_000, y: -10_000))   // clears any highlight
+                    reorder(tab.id, center: dragStart + value.translation.width)
+                }
+            }
+            .onEnded { _ in
+                let wasOutside = isOutside
+                dragged = nil
+                dragTranslation = .zero
+                if wasOutside { controller.tabDragEnded(tab.document, at: NSEvent.mouseLocation) }
+            }
+    }
+
+    /// Moves the dragged tab past any neighbour whose middle it has crossed.
+    private func reorder(_ id: Tab.ID, center: CGFloat) {
+        guard let index = workspace.tabs.firstIndex(where: { $0.id == id }) else { return }
+        var target = index
+        for (other, tab) in workspace.tabs.enumerated() where tab.id != id {
+            guard let frame = tabFrames[tab.id] else { continue }
+            if other < index, center < frame.midX { target = min(target, other) }
+            if other > index, center > frame.midX { target = max(target, other) }
+        }
+        if target != index { withAnimation(.easeOut(duration: 0.15)) { workspace.moveTab(id, to: target) } }
+    }
+}
+
+private struct TabFrames: PreferenceKey {
+    static let defaultValue: [Tab.ID: CGRect] = [:]
+    static func reduce(value: inout [Tab.ID: CGRect], nextValue: () -> [Tab.ID: CGRect]) {
+        value.merge(nextValue()) { $1 }
     }
 }
 
@@ -48,6 +127,8 @@ struct TabBar: View {
 private struct TabButton: View {
     let document: MarkdownDocument
     let isSelected: Bool
+    /// Showing in another pane of a split window.
+    let isShownElsewhere: Bool
     let select: () -> Void
     let close: () -> Void
     @State private var isHovered = false
@@ -89,7 +170,7 @@ private struct TabButton: View {
         .frame(maxWidth: 200, minHeight: 28, maxHeight: 28)
         .background {
             RoundedRectangle(cornerRadius: 7)
-                .fill(isSelected ? Color(.page) : isHovered ? Color(.hover) : .clear)
+                .fill(isSelected ? Color(.page) : isHovered || isShownElsewhere ? Color(.hover) : .clear)
                 .overlay {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 7).strokeBorder(Color(.line), lineWidth: 1)

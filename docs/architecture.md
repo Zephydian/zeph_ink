@@ -13,7 +13,7 @@ Everything inside the window (tab bar, and later the toolbar, status bar and set
 
 ## Documents: `NSDocument`, without windows of their own
 
-`MarkdownDocument` is an `NSDocument`, so macOS provides autosave in place, Versions, crash recovery, the "Edited" state, Open Recent and file coordination. `NSDocumentController.shared` (not subclassed) opens and creates documents, and stops a file from being opened twice.
+`MarkdownDocument` is an `NSDocument`, so macOS provides autosave in place, Versions, crash recovery, the "Edited" state, Open Recent and file coordination. The same class opens `.md`/`.markdown` files and `.txt` files (`isPlainText`, from the document's type). `NSDocumentController` opens and creates documents and stops a file from being opened twice. It's subclassed (`DocumentController`) for one change: quitting never asks "Do you want to save?". Every changed document is autosaved instead, untitled ones into the app's container, and comes back at the next launch (see Session).
 
 A document doesn't make a window:
 
@@ -28,20 +28,54 @@ The document isn't in the workspace window controller's `windowControllers`. Ins
 
 Closing a tab calls `canClose(withDelegate:…)` first, which asks about unsaved changes when macOS needs to. The window's close button closes the tabs one at a time the same way, and stops if you cancel.
 
+**Changes made by other apps.** AppKit tells every open document when its file changes (`presentedItemDidChange`), but only reloads documents that have windows of their own. `MarkdownDocument` does it itself:
+
+- A document without unsaved changes reloads quietly.
+- A document with changes asks: Keep My Version or Reload.
+
 ## The text is the file
 
 Each document owns an `NSTextStorage`. Its editor's TextKit 2 text view (`NSTextContentStorage` → `NSTextLayoutManager` → `NSTextContainer` → `ZephTextView`) edits that storage directly, and `data(ofType:)` writes its string back as UTF-8.
 
-The document keeps the bytes it last read or wrote. If the text hasn't changed, saving writes those exact bytes. A UTF-8 byte order mark is kept aside and written back. `ZephInkTests` checks this with the files in `Fixtures/`.
+The document keeps the bytes it last read or wrote. If the text hasn't changed, saving writes those exact bytes. `ZephInkTests` checks this with the files in `Fixtures/`.
+
+`FileText` records how a file stores its text: its encoding, its byte order mark and its line breaks.
+
+- **Reading:** a byte order mark decides the encoding (UTF-8 or UTF-16). Without one, the file is read as UTF-8 if it's valid UTF-8, otherwise as Windows Latin 1, then Mac Roman.
+- **Saving an edit:** the same encoding, mark and line breaks. Text the encoding can't hold (an emoji in a Latin 1 file) switches the file to UTF-8 rather than losing characters.
+- **Typing and pasting:** Return, Shift-Return and pasted text all use the file's own line break (`\r\n`, `\r` or `\n`).
+
+## `.txt` files
+
+A `.txt` file shows as plain JetBrains Mono, with no styling, no list or checkbox handling and no source view. File → Convert to Markdown saves `name.md` next to `name.txt` and opens it in the same tab and pane. The `.txt` is never changed. The sandbox allows writing the copy because markdown is declared a related type (`NSIsRelatedItemType`), and the write is coordinated through a file presenter whose primary item is the `.txt`. That presenter stays registered while the converted document is open, because the access ends when it's removed. If a `name.md` already exists, or the folder can't be written, a save panel asks where to put the copy.
 
 ## Workspace
 
-- `Workspace` (`@Observable`): the tabs in order and the selected one. Each `Tab` pairs a document with its `Editor`.
-- `Editor`: one document's text view and scroll view. It lives as long as the tab, so switching tabs keeps the selection, scroll position and undo history. `EditorView` hands its scroll view to SwiftUI.
-- `WorkspaceWindowController`: the window (full-size content, transparent title bar, tab bar beside the window buttons) and the glue above. It watches the workspace to keep the window's document, title, edited dot and focus in step with the selected tab.
-- `TabBar`: the tabs and the + button. Its empty space drags the window, and double-clicking it zooms (following the Desktop & Dock setting).
+- **`Workspace`** (`@Observable`, no AppKit) holds the tabs in order and the panes: up to three, side by side, each showing a different tab. The focused pane is the one you type in, and its tab is the selected one. Each `Tab` pairs a document with its `Editor`. The rules are in its methods and tested in `WorkspaceTests`:
+  - Choosing a tab that's already in a pane focuses that pane; otherwise the tab shows in the focused pane.
+  - Split Right shows the next tab that isn't on screen, or a new document when every tab is showing.
+  - Closing a pane keeps its tab. Closing a tab shown in a split closes its pane.
+  - A fourth pane is refused with a notice.
+- **`Editor`** is one document's text view and scroll view. It lives as long as the tab, even when the tab moves to another window, so the selection, scroll position, undo history and page/source setting go with it.
+- **`PaneSplitView`** (an `NSSplitView`) holds one `PaneContainer` per pane:
+  - The focused pane gets a thin accent line along its top while the window is split.
+  - A tab dragged over a pane tints the half it would open beside.
+  - Double-clicking a divider makes the panes equal.
+  - Pane widths are applied in `layout()`, once the split view knows its size.
+- **`WorkspaceWindowController`** is the window (full-size content, transparent title bar, tab bar beside the window buttons) and the glue above. It watches the workspace to keep the window's document, title, edited dot and focus in step with the focused pane, and saves the session shortly after anything changes. ⌘W closes the focused pane when the window is split, otherwise the tab.
+- **`TabBar`** shows the tabs and the + button. Its empty space drags the window, and double-clicking it zooms (following the Desktop & Dock setting). Tabs are dragged with a SwiftUI `DragGesture`:
+  - Along the bar, a tab reorders live.
+  - Pulled below the bar, it hands over to the controller, which uses the pointer's screen position. Dropped on a pane (in this window or another), it opens beside it. Dropped on another window, it moves there. Dropped anywhere else, it gets a window of its own.
 
 Native window tabs are turned off (`tabbingMode = .disallowed`): they can't show documents side by side.
+
+## Session
+
+`Session` records every window: its frame, its tabs, which tabs its panes show, the pane widths, and each tab's page/source setting.
+
+- **When it's saved:** a second after any change. When quitting is confirmed, it's saved one last time and frozen, because the windows closing on the way out would otherwise save an empty session.
+- **How documents are remembered:** saved files by security-scoped bookmark (the `files.bookmarks.app-scope` entitlement). Untitled documents by their autosave, which stays in the app's container.
+- **At launch:** `AppDelegate` reopens the session before any file the app was asked to open, and skips the new untitled document when something came back. A restored file keeps its security scope until its document closes.
 
 ## Styling markdown
 

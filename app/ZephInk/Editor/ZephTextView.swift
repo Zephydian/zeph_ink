@@ -115,7 +115,7 @@ final class ZephTextView: NSTextView {
         let selection = selectedRange()
         guard editor?.handlesMarkdownInput == true, let item = listLine(at: selection.location),
               selection.location >= item.contentStart else {
-            super.insertNewline(sender)
+            insertText(lineBreak, replacementRange: selection)
             return
         }
         let rest = NSRange(location: item.contentStart, length: NSMaxRange(item.range) - item.contentStart)
@@ -132,12 +132,27 @@ final class ZephTextView: NSTextView {
     }
 
     /// The line break the document already uses, so a new line matches its neighbours.
-    private var lineBreak: String {
-        let text = string as NSString
-        let found = text.range(of: "\n")
-        if found.location != NSNotFound, found.location > 0, text.character(at: found.location - 1) == 0x0D { return "\r\n" }
-        if found.location == NSNotFound, text.range(of: "\r").location != NSNotFound { return "\r" }
-        return "\n"
+    private var lineBreak: String { editor?.lineBreak ?? "\n" }
+
+    /// Shift-Return would insert a Unicode line separator, which markdown doesn't know: make it a line break.
+    override func insertLineBreak(_ sender: Any?) {
+        insertNewline(sender)
+    }
+
+    /// Pasted text takes the document's line breaks, so a file never ends up with a mix.
+    override func paste(_ sender: Any?) {
+        guard let text = NSPasteboard.general.string(forType: .string), let editor else {
+            super.paste(sender)
+            return
+        }
+        let normalized = FileText(encoding: .utf8, byteOrderMark: Data(), lineBreak: editor.lineBreak).normalizingLineBreaks(text)
+        insertText(normalized, replacementRange: selectedRange())
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted { editor?.didBecomeFocused?() }
+        return accepted
     }
 
     override func insertTab(_ sender: Any?) {

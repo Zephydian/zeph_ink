@@ -52,6 +52,8 @@ enum MainMenu {
         menu.addItem(item("Move To…", #selector(NSDocument.move(_:))))
         menu.addItem(item("Revert to Saved", #selector(NSDocument.revertToSaved(_:))))
         menu.addItem(item("Browse All Versions…", #selector(NSDocument.browseVersions(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Convert to Markdown", #selector(WorkspaceWindowController.convertToMarkdown(_:))))
         return menu
     }
 
@@ -98,6 +100,13 @@ enum MainMenu {
             symbols.addItem(entry)
         }
         menu.addItem(submenu(symbols))
+        menu.addItem(.separator())
+        menu.addItem(item("Split Right", #selector(WorkspaceWindowController.splitRight(_:)), "\\"))
+        menu.addItem(item("Close Split", #selector(WorkspaceWindowController.closeSplit(_:))))
+        menu.addItem(item("Focus Left Pane", #selector(WorkspaceWindowController.focusPreviousPane(_:)),
+                          String(UnicodeScalar(NSLeftArrowFunctionKey)!), [.command, .option]))
+        menu.addItem(item("Focus Right Pane", #selector(WorkspaceWindowController.focusNextPane(_:)),
+                          String(UnicodeScalar(NSRightArrowFunctionKey)!), [.command, .option]))
         menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]))
         return menu

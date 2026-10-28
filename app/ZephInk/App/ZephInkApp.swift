@@ -10,6 +10,7 @@ enum ZephInkApp {
     static func main() {
         Fonts.register()
         let app = NSApplication.shared
+        _ = DocumentController()   // the first document controller made becomes the shared one
         let delegate = AppDelegate()
         app.delegate = delegate
         app.mainMenu = MainMenu.make()

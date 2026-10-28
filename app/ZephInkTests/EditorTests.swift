@@ -154,3 +154,33 @@ struct EditorTests {
 }
 
 private final class EditorBundleToken {}
+
+/// Line breaks and `.txt` files in the editor.
+@MainActor
+struct EditorFileTests {
+    private func editor(_ text: String, type: String = MarkdownDocument.markdownType) throws -> (MarkdownDocument, Editor) {
+        Fonts.register()
+        let document = MarkdownDocument()
+        document.fileType = type
+        try document.read(from: Data(text.utf8), ofType: type)
+        return (document, Editor(document: document))
+    }
+
+    @Test func returnUsesTheFilesLineBreaks() throws {
+        let (document, editor) = try editor("one\r\ntwo")
+        editor.textView.setSelectedRange(NSRange(location: 8, length: 0))
+        editor.textView.insertNewline(nil)
+        editor.textView.insertLineBreak(nil)
+        #expect(document.storage.string == "one\r\ntwo\r\n\r\n")
+    }
+
+    @Test func plainTextFilesAreMonospacedWithoutMarkdown() throws {
+        let (document, editor) = try editor("# not a heading\n- not a list", type: MarkdownDocument.plainTextType)
+        #expect(document.isPlainText)
+        let font = document.storage.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        #expect(font?.fontName.hasPrefix("JetBrainsMono") == true)
+        editor.textView.setSelectedRange(NSRange(location: (document.storage.string as NSString).length, length: 0))
+        editor.textView.insertNewline(nil)
+        #expect(document.storage.string == "# not a heading\n- not a list\n")
+    }
+}

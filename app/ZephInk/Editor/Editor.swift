@@ -17,6 +17,15 @@ final class Editor: NSObject {
     /// Lines whose symbols show in Clean mode: the ones the selection is on.
     private var revealed: Set<Int> = []
 
+    private weak var document: MarkdownDocument?
+    /// A `.txt` document: always plain monospaced text, with no markdown styling or input rules.
+    let isPlainText: Bool
+    /// Called when this editor's text view takes the focus.
+    var didBecomeFocused: (() -> Void)?
+
+    /// What Return inserts: the line break the file already uses.
+    var lineBreak: String { document?.format.lineBreak ?? "\n" }
+
     /// Page view (styled) or source view (plain monospaced text). Each tab keeps its own.
     var isSourceMode = false {
         didSet {
@@ -26,14 +35,16 @@ final class Editor: NSObject {
     }
 
     private var mode: MarkdownStyler.Mode {
-        isSourceMode ? .source : .page(MarkdownSymbols.current)
+        isSourceMode || isPlainText ? .source : .page(MarkdownSymbols.current)
     }
 
     /// Whether Return, Tab and clicks act on markdown (lists, checkboxes).
-    var handlesMarkdownInput: Bool { true }
+    var handlesMarkdownInput: Bool { !isPlainText }
 
     init(document: MarkdownDocument) {
         storage = document.storage
+        self.document = document
+        isPlainText = document.isPlainText
         analysis = MarkdownAnalysis("")   // worked out by restyleAll() below
         contentStorage.textStorage = storage
         let layoutManager = NSTextLayoutManager()
@@ -54,7 +65,7 @@ final class Editor: NSObject {
         textView.allowsUndo = true
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
-        textView.isContinuousSpellCheckingEnabled = true
+        textView.isContinuousSpellCheckingEnabled = !isPlainText
         // Markdown is plain text: smart quotes, dashes and replacements would change what the person typed.
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
