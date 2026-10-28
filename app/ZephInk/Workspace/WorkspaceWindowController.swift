@@ -271,6 +271,55 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         return all.first { $0.window?.windowNumber == number }
     }
 
+    // MARK: - Synced scrolling
+
+    /// Watched clip views, by the editor they belong to.
+    private var scrollObservers: [ObjectIdentifier: NSObjectProtocol] = [:]
+    private var isSyncingScroll = false
+
+    /// Keeps watching the scrolling of exactly the editors on screen.
+    private func watchPaneScrolling() {
+        let editors = workspace.panes.compactMap { workspace.tab(id: $0.tabID)?.editor }
+        let ids = Set(editors.map(ObjectIdentifier.init))
+        for (id, observer) in scrollObservers where !ids.contains(id) {
+            NotificationCenter.default.removeObserver(observer)
+            scrollObservers[id] = nil
+        }
+        for editor in editors where scrollObservers[ObjectIdentifier(editor)] == nil {
+            let clip = editor.scrollView.contentView
+            clip.postsBoundsChangedNotifications = true
+            scrollObservers[ObjectIdentifier(editor)] = NotificationCenter.default.addObserver(
+                // Delivered at once (not queued), so the other panes move in the same frame.
+                forName: NSView.boundsDidChangeNotification, object: clip, queue: nil) { [weak self, weak editor] _ in
+                MainActor.assumeIsolated {
+                    if let editor { self?.paneDidScroll(editor) }
+                }
+            }
+        }
+    }
+
+    /// View → Synced Scrolling: the other panes follow, each to the same point in its own document
+    /// (halfway down one is halfway down the others).
+    private func paneDidScroll(_ source: Editor) {
+        guard Preferences.syncedScrolling, workspace.isSplit, !isSyncingScroll else { return }
+        isSyncingScroll = true
+        defer { isSyncingScroll = false }
+        let fraction = Self.scrollFraction(of: source.scrollView)
+        for pane in workspace.panes {
+            guard let editor = workspace.tab(id: pane.tabID)?.editor, editor !== source else { continue }
+            let clip = editor.scrollView.contentView
+            let range = max((editor.scrollView.documentView?.frame.height ?? 0) - clip.bounds.height, 0)
+            clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: (fraction * range).rounded()))
+            editor.scrollView.reflectScrolledClipView(clip)
+        }
+    }
+
+    private static func scrollFraction(of scrollView: NSScrollView) -> CGFloat {
+        let clip = scrollView.contentView
+        let range = (scrollView.documentView?.frame.height ?? 0) - clip.bounds.height
+        return range > 0 ? min(max(clip.bounds.origin.y / range, 0), 1) : 0
+    }
+
     // MARK: - Session
 
     /// This window as the session saves it.
@@ -330,8 +379,9 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
 
     private var focusedEditor: ObjectIdentifier?
 
-    fileprivate func workspaceDidChange() {
+    func workspaceDidChange() {
         guard let window else { return }
+        watchPaneScrolling()
         let selected = workspace.selectedTab
         if document !== selected?.document {
             document = selected?.document

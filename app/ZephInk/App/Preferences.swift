@@ -13,6 +13,9 @@ nonisolated enum Preferences {
         static let paperSize = "paperSize"
         static let customPageWidth = "customPageWidth"
         static let customPageHeight = "customPageHeight"
+        static let focusMode = "focusMode"
+        static let typewriterMode = "typewriterMode"
+        static let syncedScrolling = "syncedScrolling"
     }
 
     /// How the page looks: one page that grows, or separate pages with breaks between them.
@@ -134,6 +137,17 @@ nonisolated enum Preferences {
 
     private static func value<Value: RawRepresentable>(_ key: String, default fallback: Value) -> Value where Value.RawValue == String {
         UserDefaults.standard.string(forKey: key).flatMap(Value.init(rawValue:)) ?? fallback
+    }
+
+    /// Dims everything but the paragraph you're writing, and hides the toolbar.
+    static var focusMode: Bool { UserDefaults.standard.bool(forKey: Key.focusMode) }
+    /// Keeps the line you're typing in the middle of the window.
+    static var typewriterMode: Bool { UserDefaults.standard.bool(forKey: Key.typewriterMode) }
+    /// Panes side by side scroll together.
+    static var syncedScrolling: Bool { UserDefaults.standard.bool(forKey: Key.syncedScrolling) }
+
+    static func toggle(_ key: String) {
+        UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: key), forKey: key)
     }
 
     static func set<Value: RawRepresentable>(_ value: Value, for key: String) where Value.RawValue == String {

@@ -153,6 +153,14 @@ Every formatting action only inserts or removes markdown characters:
 - Words are counted the way macOS splits text into words, so markdown symbols and link addresses don't count. The count runs a quarter second after typing pauses, and again for the selection.
 - Word-count goals are kept per file path in the defaults (`WordGoals`), never in the file.
 
+## Focus, typewriter and synced scrolling
+
+These are switches in the defaults, toggled from the View menu, and each editor follows them:
+
+- **Focus Mode** fades every block but the one with the cursor. It uses TextKit 2 rendering attributes (`setRenderingAttributes`), which change how text is drawn, not the text or its styling. The toolbar hides.
+- **Typewriter Mode** gives the scroll view half a window of content inset at the top and bottom, and scrolls the cursor's line to the middle after each selection change.
+- **Synced Scrolling** has the window controller watch each pane's clip view, delivered at once (not queued), and scroll the other panes to the same fraction of their documents. Positions are as exact as TextKit 2's height estimates for text that isn't laid out yet.
+
 ## Theme
 
 Color tokens are light/dark pairs in `Assets.xcassets`, collected in `Editor/Theme.swift`. Theme loads them by name rather than through Xcode's generated symbols, because those can only be used on the main thread, and TextKit 2 may draw on other threads. SwiftUI views use the generated symbols (`Color(.ink)`).

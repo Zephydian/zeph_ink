@@ -278,10 +278,12 @@ final class Editor: NSObject {
         var margins: Preferences.Margins
         var symbols: MarkdownSymbols
         var page: PageGeometry
+        var focus: Bool
+        var typewriter: Bool
 
         static var current: Look {
             Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current,
-                 page: PageGeometry.current(viewWidth: 1000))
+                 page: PageGeometry.current(viewWidth: 1000), focus: Preferences.focusMode, typewriter: Preferences.typewriterMode)
         }
     }
 
@@ -294,6 +296,8 @@ final class Editor: NSObject {
         let old = appliedLook
         appliedLook = look
         if look.margins != old?.margins || look.page != old?.page { textView.pageMetricsDidChange() }
+        if look.focus != old?.focus || look.accent != old?.accent { focusedLines = nil; updateFocus() }
+        if look.typewriter != old?.typewriter { updateTypewriterSpace(); centerCursorIfTypewriter() }
         if look.accent != old?.accent || look.symbols != old?.symbols {
             textView.insertionPointColor = Theme.accent
             textView.selectedTextAttributes = [.backgroundColor: Theme.accentSoft]
@@ -305,6 +309,64 @@ final class Editor: NSObject {
 
     @objc private func clipViewDidResize() {
         textView.visibleHeightDidChange()
+        updateTypewriterSpace()
+    }
+
+    // MARK: - Focus and typewriter modes
+
+    /// The lines left at full strength in Focus Mode.
+    private var focusedLines: ClosedRange<Int>?
+
+    /// Focus Mode: everything but the block the cursor is in fades back. Only how text is drawn changes
+    /// (TextKit's rendering attributes), not the text or its styling.
+    func updateFocus() {
+        guard let layout = textView.textLayoutManager else { return }
+        let whole = layout.documentRange
+        guard Preferences.focusMode, !analysis.lines.isEmpty, !isPlainText else {
+            if focusedLines != nil || !Preferences.focusMode {
+                layout.removeRenderingAttribute(.foregroundColor, for: whole)
+                focusedLines = nil
+            }
+            return
+        }
+        let cursorLine = analysis.lineIndex(at: textView.selectedRange().location)
+        let lines = blockLines(around: cursorLine...analysis.lineIndex(at: NSMaxRange(textView.selectedRange())))
+        guard lines != focusedLines else { return }
+        focusedLines = lines
+        let start = analysis.lines[lines.lowerBound].fullRange.location
+        let end = NSMaxRange(analysis.lines[lines.upperBound].fullRange)
+        layout.setRenderingAttributes([.foregroundColor: Theme.ink.withAlphaComponent(0.25)], for: whole)
+        if let focused = textRange(NSRange(location: start, length: end - start)) {
+            layout.removeRenderingAttribute(.foregroundColor, for: focused)
+        }
+    }
+
+    private func textRange(_ range: NSRange) -> NSTextRange? {
+        let documentStart = contentStorage.documentRange.location
+        guard let start = contentStorage.location(documentStart, offsetBy: range.location),
+              let end = contentStorage.location(start, offsetBy: range.length) else { return nil }
+        return NSTextRange(location: start, end: end)
+    }
+
+    /// Typewriter Mode needs room above the first line and below the last to put them in the middle.
+    private func updateTypewriterSpace() {
+        let half = Preferences.typewriterMode ? (scrollView.contentSize.height / 2).rounded() : 0
+        guard scrollView.contentInsets.top != half || scrollView.contentInsets.bottom != half else { return }
+        scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.contentInsets = NSEdgeInsets(top: half, left: 0, bottom: half, right: 0)
+    }
+
+    /// Typewriter Mode: scrolls the cursor's line to the middle of the pane.
+    func centerCursorIfTypewriter() {
+        guard Preferences.typewriterMode, let window = textView.window else { return }
+        let onScreen = textView.firstRect(forCharacterRange: NSRange(location: textView.selectedRange().location, length: 0), actualRange: nil)
+        guard onScreen != .zero else { return }
+        let line = textView.convert(window.convertFromScreen(onScreen), from: nil)
+        let clip = scrollView.contentView
+        let target = NSPoint(x: clip.bounds.origin.x, y: (line.midY - clip.bounds.height / 2).rounded())
+        guard abs(target.y - clip.bounds.origin.y) > 1 else { return }
+        clip.scroll(to: clip.constrainBoundsRect(NSRect(origin: target, size: clip.bounds.size)).origin)
+        scrollView.reflectScrolledClipView(clip)
     }
 
     // MARK: - Checkboxes
@@ -336,6 +398,10 @@ extension Editor: NSTextViewDelegate {
     func textViewDidChangeSelection(_ notification: Notification) {
         updateRevealedLines()
         formatting.update(text: storage.string as NSString, selection: textView.selectedRange(), analysis: analysis)
+        updateFocus()
+        if Preferences.typewriterMode {
+            DispatchQueue.main.async { [weak self] in self?.centerCursorIfTypewriter() }   // after the new line is laid out
+        }
         let selected = textView.selectedRange()
         stats.selectionDidChange(selected.length > 0 ? (storage.string as NSString).substring(with: selected) : nil)
         let selection = textView.selectedRange()

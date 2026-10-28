@@ -6,6 +6,7 @@ struct WorkspaceView: View {
     let workspace: Workspace
     let controller: WorkspaceWindowController
     @AppStorage(Toolbar.isShownKey) private var showsToolbar = true
+    @AppStorage(Preferences.Key.focusMode) private var focusMode = false
     /// Read so the toolbar redraws in a new accent color.
     @AppStorage(Preferences.Key.accent) private var accent = Preferences.Accent.system.rawValue
 
@@ -14,7 +15,7 @@ struct WorkspaceView: View {
             VStack(spacing: 0) {
                 TabBar(workspace: workspace, controller: controller, height: max(proxy.safeAreaInsets.top, 42))
                 Rectangle().fill(Color(.line)).frame(height: 1)
-                if showsToolbar, let tab = workspace.selectedTab {
+                if showsToolbar, !focusMode, let tab = workspace.selectedTab {
                     Toolbar(editor: tab.editor, controller: controller)
                         .id(accent)
                     Rectangle().fill(Color(.line)).frame(height: 1)

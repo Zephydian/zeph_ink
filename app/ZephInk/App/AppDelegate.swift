@@ -71,7 +71,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Preferences.set(style, for: Preferences.Key.pageStyle)
     }
 
+    /// View → Focus Mode (⌘⇧F), Typewriter Mode and Synced Scrolling: switches that stay on until
+    /// switched off.
+    @objc func toggleFocusMode(_ sender: Any?) { Preferences.toggle(Preferences.Key.focusMode) }
+    @objc func toggleTypewriterMode(_ sender: Any?) { Preferences.toggle(Preferences.Key.typewriterMode) }
+    @objc func toggleSyncedScrolling(_ sender: Any?) { Preferences.toggle(Preferences.Key.syncedScrolling) }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(toggleFocusMode(_:)): menuItem.state = Preferences.focusMode ? .on : .off
+        case #selector(toggleTypewriterMode(_:)): menuItem.state = Preferences.typewriterMode ? .on : .off
+        case #selector(toggleSyncedScrolling(_:)): menuItem.state = Preferences.syncedScrolling ? .on : .off
+        default: break
+        }
         if menuItem.action == #selector(setPageStyle(_:)) {
             menuItem.state = menuItem.representedObject as? String == Preferences.pageStyle.rawValue ? .on : .off
         }

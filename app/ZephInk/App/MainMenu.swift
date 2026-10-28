@@ -129,6 +129,8 @@ enum MainMenu {
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
         menu.addItem(item("Hide Toolbar", #selector(AppDelegate.toggleToolbar(_:)), "t", [.command, .option]))
+        menu.addItem(item("Focus Mode", #selector(AppDelegate.toggleFocusMode(_:)), "f", [.command, .shift]))
+        menu.addItem(item("Typewriter Mode", #selector(AppDelegate.toggleTypewriterMode(_:))))
         menu.addItem(item("Show Markdown Source", #selector(WorkspaceWindowController.toggleSourceView(_:)), "/"))
         let symbols = NSMenu(title: "Markdown Symbols")
         for (title, value) in [("Clean", MarkdownSymbols.clean), ("Faded", MarkdownSymbols.faded)] {
@@ -154,6 +156,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Split Right", #selector(WorkspaceWindowController.splitRight(_:)), "\\"))
         menu.addItem(item("Close Split", #selector(WorkspaceWindowController.closeSplit(_:))))
+        menu.addItem(item("Synced Scrolling", #selector(AppDelegate.toggleSyncedScrolling(_:))))
         menu.addItem(item("Focus Left Pane", #selector(WorkspaceWindowController.focusPreviousPane(_:)),
                           String(UnicodeScalar(NSLeftArrowFunctionKey)!), [.command, .option]))
         menu.addItem(item("Focus Right Pane", #selector(WorkspaceWindowController.focusNextPane(_:)),
