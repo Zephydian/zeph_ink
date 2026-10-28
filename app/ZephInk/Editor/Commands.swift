@@ -91,6 +91,77 @@ nonisolated enum MarkdownCommands {
                       selection: NSRange(location: trimmed.location + length, length: trimmed.length))
     }
 
+    // MARK: - Alignment
+
+    typealias Alignment = MarkdownAnalysis.Alignment
+
+    static func alignment(at location: Int, analysis: MarkdownAnalysis) -> Alignment {
+        guard !analysis.lines.isEmpty else { return .left }
+        return analysis.lines[analysis.lineIndex(at: location)].alignment ?? .left
+    }
+
+    /// Aligns the paragraph the selection is in. Markdown has no alignment, so center and right wrap
+    /// the paragraph in `<div align="…">` with blank lines around it (the form GitHub and others
+    /// render), and left takes the wrapper away. Inside an aligned region it changes the region.
+    static func setAlignment(_ alignment: Alignment, text: NSString, selection: NSRange, analysis: MarkdownAnalysis,
+                             lineBreak: String) -> Result {
+        let lines = analysis.lines
+        guard !lines.isEmpty else { return Result(edits: [], selection: selection) }
+        var first = analysis.lineIndex(at: selection.location)
+        var last = analysis.lineIndex(at: NSMaxRange(selection))
+        let tag = "<div align=\"\(alignment.rawValue)\">"
+
+        if lines[first].alignment != nil {
+            // Already aligned: find its tags.
+            var opening = first, closing = first
+            while opening > 0, lines[opening].kind != .alignTag { opening -= 1 }
+            while closing + 1 < lines.count, lines[closing].kind != .alignTag { closing += 1 }
+            guard lines[opening].kind == .alignTag, lines[closing].kind == .alignTag, opening < closing else {
+                return Result(edits: [], selection: selection)
+            }
+            if alignment != .left {
+                let delta = (tag as NSString).length - lines[opening].range.length
+                return Result(edits: [Edit(range: lines[opening].range, replacement: tag)],
+                              selection: NSRange(location: selection.location + delta, length: selection.length))
+            }
+            // Left: remove the tags and the blank lines just inside them.
+            var removeTop = lines[opening].fullRange
+            if opening + 1 < closing, lines[opening + 1].kind == .blank {
+                removeTop.length += lines[opening + 1].fullRange.length
+            }
+            var removeBottom = lines[closing].fullRange
+            if closing - 1 > opening, lines[closing - 1].kind == .blank {
+                removeBottom = NSRange(location: lines[closing - 1].fullRange.location,
+                                       length: NSMaxRange(lines[closing].fullRange) - lines[closing - 1].fullRange.location)
+            }
+            if NSMaxRange(removeBottom) == text.length, removeBottom.location > 0 {
+                // The last line of the file: take the line break before it instead of after.
+                let previous = lines[max(closing - (lines[closing - 1].kind == .blank ? 2 : 1), 0)]
+                removeBottom = NSRange(location: NSMaxRange(previous.range), length: text.length - NSMaxRange(previous.range))
+            }
+            let shift = selection.location >= NSMaxRange(removeTop) ? removeTop.length : 0
+            return Result(edits: [Edit(range: removeBottom, replacement: ""), Edit(range: removeTop, replacement: "")],
+                          selection: NSRange(location: selection.location - shift, length: selection.length))
+        }
+
+        guard alignment != .left else { return Result(edits: [], selection: selection) }
+        // The paragraph: the selected lines and the non-blank lines around them.
+        func isText(_ index: Int) -> Bool {
+            switch lines[index].kind { case .blank, .alignTag, .code: false; default: true }
+        }
+        guard isText(first) || isText(last) else {
+            return Result(edits: [], selection: selection)
+        }
+        while first > 0, isText(first - 1) { first -= 1 }
+        while last + 1 < lines.count, isText(last + 1) { last += 1 }
+        let opening = tag + lineBreak + lineBreak
+        let needsBlankAfter = last + 1 < lines.count && lines[last + 1].kind != .blank
+        let closing = lineBreak + lineBreak + "</div>" + (needsBlankAfter ? lineBreak : "")
+        return Result(edits: [Edit(range: NSRange(location: NSMaxRange(lines[last].range), length: 0), replacement: closing),
+                              Edit(range: NSRange(location: lines[first].fullRange.location, length: 0), replacement: opening)],
+                      selection: NSRange(location: selection.location + (opening as NSString).length, length: selection.length))
+    }
+
     // MARK: - Return inside a style
 
     /// Return pressed inside bold, italic and the like: closes each style at the cursor, so the text

@@ -252,6 +252,9 @@ enum MarkdownStyler {
                 }
             case .blank:
                 lineHeight = Theme.bodySize * 0.9   // blank lines space blocks apart without a full line's gap
+                if hidesSymbols && line.alignment != nil { lineHeight = 2 }   // the blank lines alignment tags need
+            case .alignTag:
+                if hidesSymbols { lineHeight = 2 }
             case .body:
                 break
             }
@@ -276,6 +279,11 @@ enum MarkdownStyler {
                 }
             }
 
+            switch line.alignment {
+            case .center: paragraph.alignment = .center
+            case .right: paragraph.alignment = .right
+            default: break
+            }
             paragraph.minimumLineHeight = lineHeight
             paragraph.maximumLineHeight = lineHeight
             self.decoration = isDecorated ? decoration : nil

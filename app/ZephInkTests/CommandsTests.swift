@@ -172,4 +172,33 @@ struct CommandsTests {
         #expect(run("***both|***", close) == "***both***|")
         #expect(run("plain| text", close) == "plain| text")
     }
+
+    // MARK: Alignment
+
+    private func align(_ alignment: MarkdownCommands.Alignment) -> (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result {
+        { MarkdownCommands.setAlignment(alignment, text: $0, selection: $1, analysis: $2, lineBreak: "\n") }
+    }
+
+    @Test func centeringWrapsTheParagraphInHTML() {
+        #expect(run("Hel|lo", align(.center)) == "<div align=\"center\">\n\nHel|lo\n\n</div>")
+        #expect(run("a\n\nb|c\nd\n\ne", align(.center)) == "a\n\n<div align=\"center\">\n\nb|c\nd\n\n</div>\n\ne")
+        #expect(run("a|\nnext", align(.right)) == "<div align=\"right\">\n\na|\nnext\n\n</div>")
+    }
+
+    @Test func alignmentChangesOrComesOff() {
+        let centered = "<div align=\"center\">\n\nHel|lo\n\n</div>"
+        #expect(run(centered, align(.right)) == "<div align=\"right\">\n\nHel|lo\n\n</div>")
+        #expect(run(centered, align(.left)) == "Hel|lo")
+        #expect(run(centered + "\n\nmore", align(.left)) == "Hel|lo\n\nmore")
+        #expect(run("plain|", align(.left)) == "plain|")
+    }
+
+    @Test func alignedLinesAreFound() {
+        let text = "<div align=\"center\">\n\nMiddle\n\n</div>\n\nAfter"
+        let lines = MarkdownAnalysis(text).lines
+        #expect(lines[0].kind == .alignTag)
+        #expect(lines[2].alignment == .center)
+        #expect(lines[4].kind == .alignTag)
+        #expect(lines[6].alignment == nil)
+    }
 }

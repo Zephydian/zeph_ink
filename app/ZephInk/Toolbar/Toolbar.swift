@@ -26,6 +26,12 @@ struct Toolbar: View {
                     Separator()
                     StyleMenuButton(editor: editor, isOff: isOff, run: run)
                     Separator()
+                    button("text.alignleft", .symbol, "Align left", "⌘{", "the normal alignment", on: state.alignment == .left) { $0.alignLeft(nil) }
+                    button("text.aligncenter", .symbol, "Center", "⌘|", "<div align=\"center\"> around the paragraph",
+                           on: state.alignment == .center) { $0.alignCenter(nil) }
+                    button("text.alignright", .symbol, "Align right", "⌘}", "<div align=\"right\"> around the paragraph",
+                           on: state.alignment == .right) { $0.alignRight(nil) }
+                    Separator()
                     button("B", .serif(.bold), "Bold", "⌘B", "**text**", on: state.inline.contains(.bold)) { $0.toggleBold(nil) }
                     button("I", .serif(.italic), "Italic", "⌘I", "*text*", on: state.inline.contains(.italic)) { $0.toggleItalic(nil) }
                     button("S", .serif(.strikethrough), "Strikethrough", "⌘⇧X", "~~text~~", on: state.inline.contains(.strikethrough)) { $0.toggleStrikethrough(nil) }

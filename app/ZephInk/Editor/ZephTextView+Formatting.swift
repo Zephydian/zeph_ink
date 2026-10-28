@@ -40,6 +40,18 @@ extension ZephTextView {
                                             analysis: editor.analysis, lineBreak: editor.lineBreak))
     }
 
+    // MARK: Alignment (the standard Format menu actions, writing markdown instead of attributes)
+
+    override func alignLeft(_ sender: Any?) { setAlignment(.left) }
+    override func alignCenter(_ sender: Any?) { setAlignment(.center) }
+    override func alignRight(_ sender: Any?) { setAlignment(.right) }
+
+    private func setAlignment(_ alignment: MarkdownCommands.Alignment) {
+        guard let editor, editor.handlesMarkdownInput else { return }
+        apply(MarkdownCommands.setAlignment(alignment, text: string as NSString, selection: selectedRange(),
+                                            analysis: editor.analysis, lineBreak: editor.lineBreak))
+    }
+
     // MARK: Lists and blocks
 
     @objc func toggleBulletedList(_ sender: Any?) { toggleList(.bulleted) }
@@ -160,6 +172,9 @@ extension ZephTextView {
         case #selector(toggleBulletedList(_:)): isOn = state.list == .bulleted
         case #selector(toggleNumberedList(_:)): isOn = state.list == .numbered
         case #selector(toggleChecklist(_:)): isOn = state.list == .checklist
+        case #selector(alignLeft(_:)): isOn = state.alignment == .left
+        case #selector(alignCenter(_:)): isOn = state.alignment == .center
+        case #selector(alignRight(_:)): isOn = state.alignment == .right
         default: isOn = false
         }
         menuItem.state = isOn ? .on : .off
@@ -173,6 +188,7 @@ extension ZephTextView {
         #selector(setSmallHeadingStyle(_:)), #selector(setBodyStyle(_:)), #selector(toggleQuote(_:)), #selector(toggleCodeBlock(_:)),
         #selector(toggleBulletedList(_:)), #selector(toggleNumberedList(_:)), #selector(toggleChecklist(_:)),
         #selector(insertDivider(_:)), #selector(insertImage(_:)), #selector(editLink(_:)),
+        #selector(alignLeft(_:)), #selector(alignCenter(_:)), #selector(alignRight(_:)),
     ]
 }
 

@@ -52,6 +52,18 @@ struct EditorTests {
         #expect(document.storage.attribute(.foregroundColor, at: hash, effectiveRange: nil) as? NSColor == Theme.marker)
     }
 
+    @Test func alignedTextIsCenteredAndItsTagsHide() throws {
+        let previous = MarkdownSymbols.current
+        defer { MarkdownSymbols.current = previous }
+        MarkdownSymbols.current = .clean
+        let (document, editor) = try editor("Intro\n\n<div align=\"center\">\n\nMiddle\n\n</div>\n")
+        editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+        let text = document.storage.string as NSString
+        let style = document.storage.attribute(.paragraphStyle, at: text.range(of: "Middle").location, effectiveRange: nil) as? NSParagraphStyle
+        #expect(style?.alignment == .center)
+        #expect(font(at: text.range(of: "<div").location, in: document)?.pointSize == Fonts.hidden.pointSize)
+    }
+
     @Test func fadedModeAlwaysShowsSymbols() throws {
         let previous = MarkdownSymbols.current
         defer { MarkdownSymbols.current = previous }

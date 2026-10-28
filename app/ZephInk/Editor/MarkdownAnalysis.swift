@@ -20,6 +20,8 @@ nonisolated struct MarkdownAnalysis {
         var markers: [NSRange] = []
         /// The top-level block the line belongs to (nil for blank lines between blocks).
         var block: Int?
+        /// Set inside a `<div align="center">` (or `right`) region.
+        var alignment: Alignment?
 
         /// The same line, `delta` characters further on.
         func moved(by delta: Int) -> Line {
@@ -43,7 +45,7 @@ nonisolated struct MarkdownAnalysis {
         var shape: Shape {
             Shape(kind: kind, quoteDepth: quoteDepth,
                   listPrefix: list.map { $0.contentStart - range.location },
-                  isChecked: list?.isChecked ?? false)
+                  isChecked: list?.isChecked ?? false, alignment: alignment)
         }
 
         struct Shape: Equatable {
@@ -51,12 +53,20 @@ nonisolated struct MarkdownAnalysis {
             var quoteDepth: Int
             var listPrefix: Int?
             var isChecked: Bool
+            var alignment: Alignment?
         }
+    }
+
+    /// Center or right alignment, saved as HTML around the paragraphs (markdown has none of its own).
+    enum Alignment: String, Equatable {
+        case left, center, right
     }
 
     enum Kind: Equatable {
         case body
         case blank
+        /// `<div align="…">` or `</div>` around aligned paragraphs: a symbol line.
+        case alignTag
         case heading(level: Int)
         case code(CodeLine)
         case divider
@@ -147,13 +157,15 @@ nonisolated struct MarkdownAnalysis {
         // Fences open or close everything after them, so they need the whole text.
         for line in lines[first...last] {
             if case .code(let code) = line.kind, code.isFence { return nil }
+            // Alignment comes from tags that may be outside the region.
+            if line.alignment != nil || line.kind == .alignTag { return nil }
         }
         let start = lines[first].fullRange.location
         let end = NSMaxRange(lines[last].fullRange) + delta
         guard end >= start, end <= nsText.length else { return nil }
         let region = NSRange(location: start, length: end - start)
         let regionText = nsText.substring(with: region)
-        if regionText.contains("```") || regionText.contains("~~~") || regionText.contains("]:") { return nil }
+        if regionText.contains("```") || regionText.contains("~~~") || regionText.contains("]:") || regionText.contains("<div") || regionText.contains("</div") { return nil }
 
         var part = MarkdownAnalysis(regionText)
         // A region that ends with a line break gets an empty last line from the split: that line is
@@ -343,8 +355,9 @@ nonisolated private struct Builder {
         if isBullet { lines[line].markers.append(marker) }
     }
 
-    /// Blank lines, the `>` markers of quoted lines, and highlights.
+    /// Blank lines, the `>` markers of quoted lines, alignment and highlights.
     mutating func finish() {
+        defer { markAlignment() }
         markHighlights()
         for index in lines.indices {
             let line = lines[index]
@@ -354,6 +367,27 @@ nonisolated private struct Builder {
             }
             if line.quoteDepth > 0, let quote = match(Patterns.quoteMarker, in: line.range) {
                 lines[index].markers.insert(quote, at: 0)
+            }
+        }
+    }
+
+    /// Lines between `<div align="center">` (or `right`, `left`) and `</div>` take that alignment;
+    /// the tag lines are symbols.
+    private mutating func markAlignment() {
+        var open: MarkdownAnalysis.Alignment?
+        for index in lines.indices {
+            if case .code = lines[index].kind { continue }
+            let range = lines[index].range
+            if open == nil, let match = Patterns.alignOpen.firstMatch(in: text as String, range: range) {
+                open = MarkdownAnalysis.Alignment(rawValue: text.substring(with: match.range(at: 1)).lowercased())
+                lines[index].kind = .alignTag
+                lines[index].markers = [range]
+            } else if open != nil, Patterns.alignClose.firstMatch(in: text as String, range: range) != nil {
+                lines[index].kind = .alignTag
+                lines[index].markers = [range]
+                open = nil
+            } else if let open {
+                lines[index].alignment = open
             }
         }
     }
@@ -404,6 +438,9 @@ nonisolated private enum Patterns {
     static let listMarker = regex(#"^(?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$)"#)
     static let taskBox = regex(#"^\[[ xX]\][ \t]?"#)
     static let highlight = regex(#"==(?=[^\s=])(?:[^=]|=(?!=))*?(?<=[^\s=])=="#)
+    static let alignOpen = try! NSRegularExpression(pattern: #"^[ \t]*<div[ \t]+align=["']?(left|center|right)["']?[ \t]*>[ \t]*$"#,
+                                                   options: [.caseInsensitive])
+    static let alignClose = try! NSRegularExpression(pattern: #"^[ \t]*</div>[ \t]*$"#, options: [.caseInsensitive])
     static let quoteMarker = regex(#"^(?:[ \t]*>[ \t]?)+"#)
 
     private static func regex(_ pattern: String) -> NSRegularExpression {

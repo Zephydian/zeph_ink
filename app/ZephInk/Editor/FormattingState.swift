@@ -9,6 +9,7 @@ final class FormattingState {
     var inline: Set<MarkdownCommands.Inline> = []
     var list: MarkdownCommands.ListKind?
     var isInLink = false
+    var alignment: MarkdownCommands.Alignment = .left
     /// The pane shows the markdown source rather than the page.
     var isSourceMode = false
 
@@ -19,6 +20,8 @@ final class FormattingState {
         })
         let list = MarkdownCommands.list(at: selection.location, in: text)
         let isInLink = MarkdownCommands.link(at: selection, in: text, analysis: analysis) != nil
+        let alignment = MarkdownCommands.alignment(at: selection.location, analysis: analysis)
+        if self.alignment != alignment { self.alignment = alignment }
         // Only assign what changed, so SwiftUI redraws only what it must.
         if self.paragraph != paragraph { self.paragraph = paragraph }
         if self.inline != inline { self.inline = inline }
