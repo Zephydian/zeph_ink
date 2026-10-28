@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 
 /// The text view every editor uses: draws the page on its desk and handles markdown input (lists
 /// continue on Return, Tab indents them, checkboxes tick on click).
@@ -26,7 +27,10 @@ final class ZephTextView: NSTextView {
         let padding = isNarrow ? Theme.narrowPagePadding : Theme.pagePadding
         let desk = isNarrow ? Theme.narrowDeskMargin : Theme.deskMargin
         let inset = NSSize(width: pageRect.minX + padding.width, height: desk.height + padding.height)
-        if textContainerInset != inset { textContainerInset = inset }
+        if textContainerInset != inset {
+            textContainerInset = inset
+            editor?.textColumnDidResize()
+        }
     }
 
     override func setFrameSize(_ newSize: NSSize) {
@@ -53,11 +57,41 @@ final class ZephTextView: NSTextView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if let task = editor?.drawnCheckbox(near: characterIndexForInsertion(at: point)) {
+        let index = characterIndexForInsertion(at: point)
+        if event.modifierFlags.contains(.command), openLink(at: index) { return }
+        if isOnImageAccessPrompt(point) {
+            editor?.requestImageAccess()
+            return
+        }
+        if let task = editor?.drawnCheckbox(near: index) {
             toggleCheckbox(task)
             return
         }
         super.mouseDown(with: event)
+    }
+
+    private func isOnImageAccessPrompt(_ point: NSPoint) -> Bool {
+        let inContainer = CGPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+        guard let fragment = textLayoutManager?.textLayoutFragment(for: inContainer) as? PageLayoutFragment else { return false }
+        let local = CGPoint(x: inContainer.x - fragment.layoutFragmentFrame.minX, y: inContainer.y - fragment.layoutFragmentFrame.minY)
+        return fragment.isOnAccessPrompt(local)
+    }
+
+    // MARK: - Dropping images
+
+    /// Images dropped on a markdown document are copied into its `assets` folder and linked.
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true,
+                                                              .urlReadingContentsConformToTypes: [UTType.image.identifier]]
+        guard editor?.handlesMarkdownInput == true, editor?.isSourceMode == false,
+              let images = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL],
+              !images.isEmpty else {
+            return super.performDragOperation(sender)
+        }
+        let point = convert(sender.draggingLocation, from: nil)
+        setSelectedRange(NSRange(location: characterIndexForInsertion(at: point), length: 0))
+        ImageAssets.insert(images, into: self)
+        return true
     }
 
     /// Ticks or unticks the `[ ]` at `range` by changing the one character inside it.

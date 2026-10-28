@@ -20,3 +20,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `.txt` files open as plain text. File → Convert to Markdown saves a `.md` copy next to the `.txt` (which stays as it was) and opens it.
 - Files keep their encoding (UTF-8, UTF-16, Windows Latin 1, Mac Roman) and line breaks. Return and paste use the file's own line breaks.
 - When another app changes an open file, Zeph#Ink reloads it, or asks first if you have unsaved changes.
+- A one-row toolbar: paragraph styles, bold, italic, strikethrough, inline code, link, lists, checklist, quote, divider, image, and the MD switch. Buttons light up for the styles at the cursor, and each tooltip shows its shortcut and markdown. View → Hide Toolbar (⌘⌥T) hides it.
+- A Format menu with every style and its shortcut: Title to Small Heading (⌘1–⌘4), Body (⌘0), Quote (⌘⇧.), Bold (⌘B), Italic (⌘I), Strikethrough (⌘⇧X), Inline Code (⌘E), Link (⌘K), lists (⌘⇧8, ⌘⇧7, ⌘⇧9), Divider and Image.
+- Links: ⌘K adds or edits a link in a small popover, and ⌘-click opens one.
+- Images: add them from the toolbar or by dropping them on the page. They're copied into an "assets" folder next to the document and shown on the page. Zeph#Ink asks once per folder for permission.
+- In `.txt` files, the formatting tools are dimmed and a Convert to Markdown button appears.

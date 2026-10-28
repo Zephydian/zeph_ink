@@ -39,7 +39,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         MarkdownSymbols.current = symbols
     }
 
+    /// View → Hide Toolbar (⌘⌥T), for every window.
+    @objc func toggleToolbar(_ sender: Any?) {
+        UserDefaults.standard.set(!Toolbar.isShown, forKey: Toolbar.isShownKey)
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleToolbar(_:)) {
+            menuItem.title = Toolbar.isShown ? "Hide Toolbar" : "Show Toolbar"
+        }
         if menuItem.action == #selector(setMarkdownSymbols(_:)) {
             menuItem.state = menuItem.representedObject as? String == MarkdownSymbols.current.rawValue ? .on : .off
         }

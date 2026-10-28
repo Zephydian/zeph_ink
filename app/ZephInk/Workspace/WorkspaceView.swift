@@ -5,12 +5,17 @@ import SwiftUI
 struct WorkspaceView: View {
     let workspace: Workspace
     let controller: WorkspaceWindowController
+    @AppStorage(Toolbar.isShownKey) private var showsToolbar = true
 
     var body: some View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
                 TabBar(workspace: workspace, controller: controller, height: max(proxy.safeAreaInsets.top, 42))
                 Rectangle().fill(Color(.line)).frame(height: 1)
+                if showsToolbar, let tab = workspace.selectedTab {
+                    Toolbar(editor: tab.editor, controller: controller)
+                    Rectangle().fill(Color(.line)).frame(height: 1)
+                }
                 if workspace.panes.isEmpty {
                     Color(.desk)
                 } else {

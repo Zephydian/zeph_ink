@@ -8,6 +8,7 @@ enum MainMenu {
         menu.addItem(submenu(appMenu()))
         menu.addItem(submenu(fileMenu()))
         menu.addItem(submenu(editMenu()))
+        menu.addItem(submenu(formatMenu()))
         menu.addItem(submenu(viewMenu()))
         let window = windowMenu()
         menu.addItem(submenu(window))
@@ -80,7 +81,7 @@ enum MainMenu {
             ("Find and Replace…", .showReplaceInterface, "f", [.command, .option]),
             ("Find Next", .nextMatch, "g", [.command]),
             ("Find Previous", .previousMatch, "g", [.command, .shift]),
-            ("Use Selection for Find", .setSearchString, "e", [.command]),
+            ("Use Selection for Find", .setSearchString, "", [.command]),   // ⌘E is Inline Code
         ]
         for (title, action, key, modifiers) in actions {
             let entry = item(title, #selector(NSTextView.performTextFinderAction(_:)), key, modifiers)
@@ -90,8 +91,36 @@ enum MainMenu {
         return menu
     }
 
+    /// Every formatting action, with the shortcuts the toolbar's tooltips show. They act on the text
+    /// view that has the focus.
+    private static func formatMenu() -> NSMenu {
+        let menu = NSMenu(title: "Format")
+        let shiftCommand: NSEvent.ModifierFlags = [.command, .shift]
+        menu.addItem(item("Title", #selector(ZephTextView.setTitleStyle(_:)), "1"))
+        menu.addItem(item("Heading", #selector(ZephTextView.setHeadingStyle(_:)), "2"))
+        menu.addItem(item("Subheading", #selector(ZephTextView.setSubheadingStyle(_:)), "3"))
+        menu.addItem(item("Small Heading", #selector(ZephTextView.setSmallHeadingStyle(_:)), "4"))
+        menu.addItem(item("Body", #selector(ZephTextView.setBodyStyle(_:)), "0"))
+        menu.addItem(item("Quote", #selector(ZephTextView.toggleQuote(_:)), ".", shiftCommand))
+        menu.addItem(item("Code Block", #selector(ZephTextView.toggleCodeBlock(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Bold", #selector(ZephTextView.toggleBold(_:)), "b"))
+        menu.addItem(item("Italic", #selector(ZephTextView.toggleItalic(_:)), "i"))
+        menu.addItem(item("Strikethrough", #selector(ZephTextView.toggleStrikethrough(_:)), "x", shiftCommand))
+        menu.addItem(item("Inline Code", #selector(ZephTextView.toggleInlineCode(_:)), "e"))
+        menu.addItem(item("Link…", #selector(ZephTextView.editLink(_:)), "k"))
+        menu.addItem(.separator())
+        menu.addItem(item("Bulleted List", #selector(ZephTextView.toggleBulletedList(_:)), "8", shiftCommand))
+        menu.addItem(item("Numbered List", #selector(ZephTextView.toggleNumberedList(_:)), "7", shiftCommand))
+        menu.addItem(item("Checklist", #selector(ZephTextView.toggleChecklist(_:)), "9", shiftCommand))
+        menu.addItem(item("Divider", #selector(ZephTextView.insertDivider(_:))))
+        menu.addItem(item("Image…", #selector(ZephTextView.insertImage(_:))))
+        return menu
+    }
+
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
+        menu.addItem(item("Hide Toolbar", #selector(AppDelegate.toggleToolbar(_:)), "t", [.command, .option]))
         menu.addItem(item("Show Markdown Source", #selector(WorkspaceWindowController.toggleSourceView(_:)), "/"))
         let symbols = NSMenu(title: "Markdown Symbols")
         for (title, value) in [("Clean", MarkdownSymbols.clean), ("Faded", MarkdownSymbols.faded)] {

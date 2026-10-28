@@ -21,7 +21,27 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
 
     /// TextKit only draws inside this rectangle, which by default hugs the glyphs.
     override var renderingSurfaceBounds: CGRect {
-        decoration == nil ? super.renderingSurfaceBounds : super.renderingSurfaceBounds.union(columnBounds)
+        guard let decoration else { return super.renderingSurfaceBounds }
+        var bounds = super.renderingSurfaceBounds.union(columnBounds)
+        if let image = imageRect(for: decoration) { bounds = bounds.union(image) }
+        return bounds
+    }
+
+    /// Where a line's image (or its prompt) goes, in this fragment's coordinates: below the text.
+    func imageRect(for decoration: LineDecoration) -> CGRect? {
+        guard decoration.image != nil || decoration.imageNeedsAccess, let line = textLineFragments.last else { return nil }
+        let top = line.typographicBounds.maxY + 7
+        let x = textLineFragments.first?.typographicBounds.minX ?? 0
+        if decoration.imageNeedsAccess {
+            return CGRect(x: x, y: top, width: min(columnBounds.width - x, 360), height: LineDecoration.accessPromptHeight)
+        }
+        return CGRect(origin: CGPoint(x: x, y: top), size: decoration.imageSize)
+    }
+
+    /// Whether a point (in this fragment's coordinates) is on an image prompt asking for access.
+    func isOnAccessPrompt(_ point: CGPoint) -> Bool {
+        guard let decoration, decoration.imageNeedsAccess, let rect = imageRect(for: decoration) else { return false }
+        return rect.contains(point)
     }
 
     override func draw(at point: CGPoint, in context: CGContext) {
@@ -36,6 +56,47 @@ nonisolated final class PageLayoutFragment: NSTextLayoutFragment {
         super.draw(at: point, in: context)
         if let bullet = decoration.bullet { drawBullet(at: bullet, origin: point, context: context) }
         if let task = decoration.task { drawCheckbox(at: task, isChecked: decoration.isChecked, origin: point, context: context) }
+        if let rect = imageRect(for: decoration)?.offsetBy(dx: point.x, dy: point.y) {
+            if let image = decoration.image {
+                drawImage(image, in: rect, context: context)
+            } else {
+                drawAccessPrompt(in: rect, context: context)
+            }
+        }
+    }
+
+    // MARK: - Images
+
+    private func drawImage(_ image: CGImage, in rect: CGRect, context: CGContext) {
+        context.saveGState()
+        context.addPath(CGPath(roundedRect: rect, cornerWidth: 4, cornerHeight: 4, transform: nil))
+        context.clip()
+        // The page is drawn flipped (y grows downwards); images draw the other way up.
+        context.translateBy(x: rect.minX, y: rect.maxY)
+        context.scaleBy(x: 1, y: -1)
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(origin: .zero, size: rect.size))
+        context.restoreGState()
+    }
+
+    /// A dashed box in the image's place: the sandbox needs the person's OK to read the folder.
+    private func drawAccessPrompt(in rect: CGRect, context: CGContext) {
+        context.saveGState()
+        context.setStrokeColor(Theme.line.cgColor)
+        context.setLineWidth(1)
+        context.setLineDash(phase: 0, lengths: [4, 3])
+        context.addPath(CGPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerWidth: 6, cornerHeight: 6, transform: nil))
+        context.strokePath()
+        context.restoreGState()
+        let graphics = NSGraphicsContext(cgContext: context, flipped: true)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = graphics
+        let text = NSAttributedString(string: "Click to show images from this folder", attributes: [
+            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: Theme.inkSecondary,
+        ])
+        let size = text.size()
+        text.draw(at: CGPoint(x: rect.minX + 14, y: rect.midY - size.height / 2))
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     // MARK: - Blocks

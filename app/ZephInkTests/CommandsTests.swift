@@ -1,0 +1,143 @@
+import Foundation
+import Testing
+@testable import ZephInk
+
+/// The formatting commands: the markdown they write, and where the selection ends up.
+@MainActor
+struct CommandsTests {
+    /// Runs a command on text whose selection is marked with `|` (a cursor) or `[` and `]` (a range),
+    /// and returns the result marked the same way.
+    private func run(_ marked: String, _ command: (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result) -> String {
+        var text = marked
+        var selection = NSRange(location: 0, length: 0)
+        if let cursor = text.range(of: "|") {
+            selection.location = text.distance(from: text.startIndex, to: cursor.lowerBound)
+            text.removeSubrange(cursor)
+        } else if let open = text.range(of: "["), let close = text.range(of: "]", range: open.upperBound..<text.endIndex) {
+            let start = (text as NSString).range(of: "[").location
+            let end = (text as NSString).range(of: "]", options: [], range: NSRange(location: start, length: (text as NSString).length - start)).location
+            text.removeSubrange(close)
+            text.removeSubrange(open)
+            selection = NSRange(location: start, length: end - start - 1)
+        }
+        let ns = NSMutableString(string: text)
+        let result = command(text as NSString, selection, MarkdownAnalysis(text))
+        for edit in result.edits { ns.replaceCharacters(in: edit.range, with: edit.replacement) }
+        let out = NSMutableString(string: ns)
+        if result.selection.length == 0 {
+            out.insert("|", at: result.selection.location)
+        } else {
+            out.insert("]", at: NSMaxRange(result.selection))
+            out.insert("[", at: result.selection.location)
+        }
+        return out as String
+    }
+
+    private func toggle(_ inline: MarkdownCommands.Inline) -> (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result {
+        { MarkdownCommands.toggle(inline, text: $0, selection: $1, analysis: $2) }
+    }
+
+    private func paragraph(_ style: MarkdownCommands.Paragraph) -> (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result {
+        { MarkdownCommands.setParagraph(style, text: $0, selection: $1, analysis: $2, lineBreak: "\n") }
+    }
+
+    private func list(_ kind: MarkdownCommands.ListKind) -> (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result {
+        { text, selection, _ in MarkdownCommands.toggleList(kind, text: text, selection: selection) }
+    }
+
+    // MARK: Inline
+
+    @Test func boldWrapsTheSelectedWords() {
+        #expect(run("Some [bold ]words", toggle(.bold)) == "Some **[bold]** words")
+        #expect(run("Some |", toggle(.bold)) == "Some **|**")
+        #expect(run("x [code] y", toggle(.code)) == "x `[code]` y")
+        #expect(run("x [gone] y", toggle(.strikethrough)) == "x ~~[gone]~~ y")
+    }
+
+    @Test func boldComesOffWhenTheSelectionIsInIt() {
+        #expect(run("Some **bo|ld** words", toggle(.bold)) == "Some bo|ld words")
+        #expect(run("Some **[bold]** words", toggle(.bold)) == "Some [bold] words")
+        #expect(run("x `co|de` y", toggle(.code)) == "x co|de y")
+        #expect(run("an *ita|lic* word", toggle(.italic)) == "an ita|lic word")
+    }
+
+    // MARK: Paragraphs
+
+    @Test func headingsReplaceWhateverStartedTheLine() {
+        #expect(run("Hel|lo", paragraph(.title)) == "# Hel|lo")
+        #expect(run("## Hel|lo", paragraph(.subheading)) == "### Hel|lo")
+        #expect(run("- Hel|lo", paragraph(.heading)) == "## Hel|lo")
+        #expect(run("### Hel|lo", paragraph(.body)) == "Hel|lo")
+        #expect(run("|", paragraph(.heading)) == "## |")
+    }
+
+    @Test func quoteTogglesOnEveryLine() {
+        #expect(run("[one\ntwo]", paragraph(.quote)) == "> [one\n> two]")
+        #expect(run("> [one\n> two]", paragraph(.quote)) == "[one\ntwo]")
+    }
+
+    @Test func codeBlockFencesTheLinesOrTakesTheFencesAway() {
+        #expect(run("a\n[let x = 1]\nb", paragraph(.codeBlock)) == "a\n```\n[let x = 1]\n```\nb")
+        #expect(run("|", paragraph(.codeBlock)) == "```\n|\n```")
+        #expect(run("```\nlet |x = 1\n```\n", paragraph(.codeBlock)) == "let |x = 1\n")
+    }
+
+    @Test func theStyleMenuShowsTheLinesStyle() {
+        let text = "# T\n\n## H\n\n> q\n\n```\nc\n```\n\nbody" as NSString
+        let analysis = MarkdownAnalysis(text as String)
+        func at(_ word: String) -> MarkdownCommands.Paragraph {
+            MarkdownCommands.paragraph(at: text.range(of: word).location, in: text, analysis: analysis)
+        }
+        #expect(at("T") == .title)
+        #expect(at("H") == .heading)
+        #expect(at("q") == .quote)
+        #expect(at("c\n") == .codeBlock)
+        #expect(at("body") == .body)
+    }
+
+    // MARK: Lists
+
+    @Test func listsAddAndRemoveMarkers() {
+        #expect(run("[one\ntwo]", list(.bulleted)) == "- [one\n- two]")
+        #expect(run("- [one\n- two]", list(.bulleted)) == "[one\ntwo]")
+        #expect(run("[one\ntwo]", list(.numbered)) == "1. [one\n2. two]")
+        #expect(run("- [one\n- two]", list(.checklist)) == "- [ ] [one\n- [ ] two]")
+        #expect(run("|", list(.bulleted)) == "- |")
+        #expect(run("1. one\nt|wo", list(.numbered)) == "1. one\n2. t|wo")
+    }
+
+    @Test func blankLinesInASelectionStayBlank() {
+        #expect(run("[one\n\ntwo]", list(.bulleted)) == "- [one\n\n- two]")
+    }
+
+    // MARK: Blocks and links
+
+    @Test func dividersGoOnALineOfTheirOwn() {
+        let divider: (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result = {
+            text, selection, _ in MarkdownCommands.insertBlock("---", text: text, selection: selection, lineBreak: "\n")
+        }
+        #expect(run("Para|graph", divider) == "Paragraph\n\n---\n|")
+        #expect(run("one\n|\ntwo", divider) == "one\n---\n|two")
+        #expect(run("one\n|", divider) == "one\n---\n|")
+    }
+
+    @Test func linksAreWrittenAndFoundAgain() {
+        let insert: (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result = { _, selection, _ in
+            MarkdownCommands.setLink(text: "Zephydian", url: "https://zephydian.com", replacing: selection)
+        }
+        #expect(run("By [Zephydian].", insert) == "By [Zephydian](https://zephydian.com)|.")
+        let text = "By [Zephydian](https://zephydian.com)." as NSString
+        let found = MarkdownCommands.link(at: NSRange(location: 6, length: 0), in: text, analysis: MarkdownAnalysis(text as String))
+        #expect(found?.text == "Zephydian")
+        #expect(found?.url == "https://zephydian.com")
+        #expect(found.map { text.substring(with: $0.range) } == "[Zephydian](https://zephydian.com)")
+    }
+
+    @Test func inlineStylesAreFoundForTheToolbar() {
+        let text = "a **b** c" as NSString
+        let analysis = MarkdownAnalysis(text as String)
+        #expect(MarkdownCommands.span(of: .bold, at: NSRange(location: 5, length: 0), in: text, analysis: analysis) != nil)
+        #expect(MarkdownCommands.span(of: .bold, at: NSRange(location: 0, length: 0), in: text, analysis: analysis) == nil)
+        #expect(MarkdownCommands.span(of: .italic, at: NSRange(location: 5, length: 0), in: text, analysis: analysis) == nil)
+    }
+}

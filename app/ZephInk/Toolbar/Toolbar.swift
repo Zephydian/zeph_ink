@@ -1,0 +1,236 @@
+import AppKit
+import SwiftUI
+
+/// The one-row formatting bar under the tabs: the paragraph style menu, inline styles, lists and
+/// blocks, then (on the right) the source view switch. Every button does what a Format menu item does,
+/// on the focused pane, and lights up when its style is on at the cursor.
+///
+/// In a `.txt` file the formatting buttons are dimmed (their tooltip says why) and a Convert to
+/// Markdown button appears instead of the source switch.
+struct Toolbar: View {
+    static let isShownKey = "showsToolbar"
+    static var isShown: Bool { UserDefaults.standard.object(forKey: isShownKey) as? Bool ?? true }
+
+    let editor: Editor
+    let controller: WorkspaceWindowController
+
+    private var state: FormattingState { editor.formatting }
+    private var isOff: Bool { editor.isPlainText }
+
+    var body: some View {
+        HStack(spacing: 2) {
+            StyleMenuButton(editor: editor, isOff: isOff, run: run)
+            Separator()
+            button("B", .serif(.bold), "Bold", "⌘B", "**text**", on: state.inline.contains(.bold)) { $0.toggleBold(nil) }
+            button("I", .serif(.italic), "Italic", "⌘I", "*text*", on: state.inline.contains(.italic)) { $0.toggleItalic(nil) }
+            button("S", .serif(.strikethrough), "Strikethrough", "⌘⇧X", "~~text~~", on: state.inline.contains(.strikethrough)) { $0.toggleStrikethrough(nil) }
+            button("</>", .mono, "Inline code", "⌘E", "`code`", on: state.inline.contains(.code)) { $0.toggleInlineCode(nil) }
+            button("link", .symbol, "Link", "⌘K", "[text](url)", on: state.isInLink) { $0.editLink(nil) }
+            Separator()
+            button("list.bullet", .symbol, "Bulleted list", "⌘⇧8", "- item", on: state.list == .bulleted) { $0.toggleBulletedList(nil) }
+            button("list.number", .symbol, "Numbered list", "⌘⇧7", "1. item", on: state.list == .numbered) { $0.toggleNumberedList(nil) }
+            button("checklist", .symbol, "Checklist", "⌘⇧9", "- [ ] task", on: state.list == .checklist) { $0.toggleChecklist(nil) }
+            button("text.quote", .symbol, "Quote", "⌘⇧.", "> text", on: state.paragraph == .quote) { $0.toggleQuote(nil) }
+            button("minus", .symbol, "Divider", nil, "---", on: false) { $0.insertDivider(nil) }
+            button("photo", .symbol, "Image", nil, "![alt](assets/file.png)", on: false) { $0.insertImage(nil) }
+            Spacer(minLength: 12)
+            if isOff {
+                Button("Convert to Markdown") { controller.convertToMarkdown(nil) }
+                    .buttonStyle(ProminentButtonStyle())
+                    .help("Saves a .md copy of this file next to it, and opens it here. The .txt file stays as it is.")
+            } else {
+                Button("MD") { controller.toggleSourceView(nil) }
+                    .buttonStyle(MarkdownToggleStyle(isOn: state.isSourceMode))
+                    .help(state.isSourceMode ? "Back to page view — ⌘/" : "Show the markdown source — ⌘/")
+                    .accessibilityLabel(state.isSourceMode ? "Page view" : "Markdown source")
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 46)
+        .background(Color(.chrome))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Formatting")
+    }
+
+    private static let offHelp = "Formatting is available in Markdown documents. Convert this file to use it."
+
+    /// Runs a formatting action on the focused text view, then gives it the focus back.
+    private func run(_ action: (ZephTextView) -> Void) {
+        guard !isOff else { return }
+        action(editor.textView)
+        editor.textView.window?.makeFirstResponder(editor.textView)
+    }
+
+    private func button(_ label: String, _ look: ButtonLook, _ name: String, _ shortcut: String?, _ syntax: String,
+                        on: Bool, action: @escaping (ZephTextView) -> Void) -> some View {
+        Button { run(action) } label: {
+            switch look {
+            case .symbol: Image(systemName: label).font(.system(size: 14, weight: .regular))
+            case .mono: Text(label).font(.custom("JetBrains Mono", size: 12))
+            case .serif(let style):
+                Text(label)
+                    .font(.custom("Literata", size: 15).weight(style == .bold ? .heavy : .regular))
+                    .italic(style == .italic)
+                    .strikethrough(style == .strikethrough)
+            }
+        }
+        .buttonStyle(ToolbarButtonStyle(isOn: on && !isOff, isOff: isOff))
+        .help(isOff ? Self.offHelp : [name, shortcut, syntax].compactMap { $0 }.joined(separator: " — "))
+        .accessibilityLabel(name)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    enum ButtonLook {
+        enum Serif { case bold, italic, strikethrough }
+        case symbol, mono, serif(Serif)
+    }
+}
+
+/// The paragraph style menu: shows the style at the cursor, and lists every style drawn in its own look.
+private struct StyleMenuButton: View {
+    let editor: Editor
+    let isOff: Bool
+    let run: ((ZephTextView) -> Void) -> Void
+    @State private var isOpen = false
+
+    private static let styles: [(MarkdownCommands.Paragraph, String, String)] = [
+        (.title, "Title", "⌘1"), (.heading, "Heading", "⌘2"), (.subheading, "Subheading", "⌘3"),
+        (.smallHeading, "Small heading", "⌘4"), (.body, "Body", "⌘0"), (.quote, "Quote", "⌘⇧."), (.codeBlock, "Code block", ""),
+    ]
+
+    private var current: String {
+        isOff ? "Plain text" : Self.styles.first { $0.0 == editor.formatting.paragraph }?.1 ?? "Body"
+    }
+
+    var body: some View {
+        Button {
+            if !isOff { isOpen.toggle() }
+        } label: {
+            HStack {
+                Text(current).font(.system(size: 13))
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color(.inkSecondary))
+            }
+            .padding(.horizontal, 10)
+            .frame(width: 148, height: 30)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color(.page)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(.line)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color(.ink))
+        .opacity(isOff ? 0.35 : 1)
+        .help(isOff ? "Formatting is available in Markdown documents. Convert this file to use it." : "Paragraph style — ⌘0 to ⌘4")
+        .accessibilityLabel("Paragraph style, \(current)")
+        .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Self.styles, id: \.1) { style, name, shortcut in
+                    StyleRow(style: style, name: name, shortcut: shortcut, isCurrent: style == editor.formatting.paragraph) {
+                        isOpen = false
+                        run { $0.setParagraph(style) }
+                    }
+                }
+            }
+            .padding(6)
+            .frame(width: 240)
+        }
+    }
+}
+
+private struct StyleRow: View {
+    let style: MarkdownCommands.Paragraph
+    let name: String
+    let shortcut: String
+    let isCurrent: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .firstTextBaseline) {
+                preview
+                Spacer()
+                Text(shortcut).font(.custom("JetBrains Mono", size: 11)).foregroundStyle(Color(.inkSecondary))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 6).fill(isHovered || isCurrent ? Color(.accentSoft) : .clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color(.ink))
+        .onHover { isHovered = $0 }
+        .accessibilityLabel(name)
+        .accessibilityAddTraits(isCurrent ? .isSelected : [])
+    }
+
+    /// Each style's name, drawn in that style.
+    @ViewBuilder private var preview: some View {
+        switch style {
+        case .title: Text(name).font(.custom("Literata", size: 21).weight(.bold))
+        case .heading: Text(name).font(.custom("Literata", size: 17).weight(.bold))
+        case .subheading: Text(name).font(.custom("Literata", size: 15).weight(.semibold))
+        case .smallHeading: Text(name.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(0.6)
+        case .body: Text(name).font(.custom("Literata", size: 14))
+        case .quote:
+            Text(name).font(.custom("Literata", size: 14)).italic()
+                .padding(.leading, 8)
+                .overlay(alignment: .leading) { Rectangle().fill(Color(.accent)).frame(width: 2) }
+        case .codeBlock: Text(name).font(.custom("JetBrains Mono", size: 12))
+        }
+    }
+}
+
+private struct Separator: View {
+    var body: some View {
+        Rectangle().fill(Color(.line)).frame(width: 1, height: 20).padding(.horizontal, 6)
+    }
+}
+
+/// A toolbar button: a hover background, and the accent when its style is on.
+private struct ToolbarButtonStyle: ButtonStyle {
+    let isOn: Bool
+    let isOff: Bool
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isOn ? Color(.accent) : Color(.ink))
+            .frame(minWidth: 32, minHeight: 30)
+            .padding(.horizontal, 2)
+            .background(RoundedRectangle(cornerRadius: 7).fill(
+                isOn ? Color(.accentSoft) : (isHovered && !isOff) || configuration.isPressed ? Color(.hover) : .clear))
+            .contentShape(Rectangle())
+            .opacity(isOff ? 0.35 : 1)
+            .onHover { isHovered = $0 }
+    }
+}
+
+/// The MD switch: outlined for page view, filled with the accent for source view.
+private struct MarkdownToggleStyle: ButtonStyle {
+    let isOn: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.custom("JetBrains Mono", size: 12).weight(.medium))
+            .foregroundStyle(isOn ? Color(.page) : Color(.ink))
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 7).fill(isOn ? Color(.accent) : Color(.page)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(isOn ? Color(.accent) : Color(.line)))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+    }
+}
+
+/// A filled accent button for the one call to action (Convert to Markdown).
+private struct ProminentButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Color(.page))
+            .padding(.horizontal, 12)
+            .frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color(.accent)))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+    }
+}

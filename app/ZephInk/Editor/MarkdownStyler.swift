@@ -31,6 +31,13 @@ nonisolated final class LineDecoration: NSObject {
     /// Where the checkbox goes: the offset of the `[ ]` from the start of the line.
     var task: Int?
     var isChecked = false
+    /// An image shown below the line, at this size.
+    var image: CGImage?
+    var imageSize: CGSize = .zero
+    /// An image the person needs to allow Zeph#Ink to read: a prompt to click instead.
+    var imageNeedsAccess = false
+
+    static let accessPromptHeight: CGFloat = 44
 }
 
 nonisolated extension NSAttributedString.Key {
@@ -43,6 +50,12 @@ nonisolated extension NSAttributedString.Key {
 /// Each line gets the look of its block (heading, quote, code…), then inline styles on top. Markdown
 /// symbols are faded, or in Clean mode drawn in a font too small to see, except on `revealed` lines.
 enum MarkdownStyler {
+    /// How to show images: where to find them, and how wide the text column is.
+    struct Images {
+        var lookup: (String) -> ImageLoader.Result?
+        var columnWidth: CGFloat
+    }
+
     enum Mode: Equatable {
         case page(MarkdownSymbols)
         /// Plain monospaced text, no styling.
@@ -51,7 +64,7 @@ enum MarkdownStyler {
 
     /// Styles the given lines (indices into `analysis.lines`).
     static func apply(_ analysis: MarkdownAnalysis, to storage: NSTextStorage, lines: ClosedRange<Int>,
-                      mode: Mode, revealed: Set<Int> = []) {
+                      mode: Mode, revealed: Set<Int> = [], images: Images? = nil) {
         guard !analysis.lines.isEmpty else { return }
         let lines = lines.clamped(to: 0...(analysis.lines.count - 1))
         let first = analysis.lines[lines.lowerBound].fullRange.location
@@ -76,23 +89,40 @@ enum MarkdownStyler {
 
         for index in lines {
             let hidesSymbols = symbols == .clean && !revealed.contains(index)
-            styleLine(analysis.lines[index], spans: spansByLine[index] ?? [], in: storage, hidesSymbols: hidesSymbols)
+            styleLine(analysis.lines[index], spans: spansByLine[index] ?? [], in: storage, hidesSymbols: hidesSymbols, images: images)
         }
     }
 
-    static func applyAll(_ analysis: MarkdownAnalysis, to storage: NSTextStorage, mode: Mode, revealed: Set<Int> = []) {
-        apply(analysis, to: storage, lines: 0...max(analysis.lines.count - 1, 0), mode: mode, revealed: revealed)
+    static func applyAll(_ analysis: MarkdownAnalysis, to storage: NSTextStorage, mode: Mode, revealed: Set<Int> = [],
+                         images: Images? = nil) {
+        apply(analysis, to: storage, lines: 0...max(analysis.lines.count - 1, 0), mode: mode, revealed: revealed, images: images)
+    }
+
+    private static let imageLine = try! NSRegularExpression(pattern: #"^[ \t]*!\[[^\]]*\]\(<?([^)\s>]+)>?(?:[ \t]+"[^"]*")?\)[ \t]*$"#)
+
+    /// The path of an image that's alone on its line (the only kind shown on the page).
+    static func imagePath(in line: String) -> String? {
+        let ns = line as NSString
+        guard let match = imageLine.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return nil }
+        return ns.substring(with: match.range(at: 1))
     }
 
     // MARK: - One line
 
     private static func styleLine(_ line: MarkdownAnalysis.Line, spans: [MarkdownAnalysis.Span],
-                                  in storage: NSTextStorage, hidesSymbols: Bool) {
-        let block = BlockStyle(line, hidesSymbols: hidesSymbols)
+                                  in storage: NSTextStorage, hidesSymbols: Bool, images: Images?) {
+        var block = BlockStyle(line, hidesSymbols: hidesSymbols)
+        // An image alone on its line shows below it, and in Clean mode stands in for its markdown.
+        var showsImage = false
+        if let images, line.kind == .body, let path = imagePath(in: (storage.string as NSString).substring(with: line.range)),
+           let result = images.lookup(path) {
+            showsImage = block.showImage(result, columnWidth: images.columnWidth)
+        }
         storage.setAttributes(block.attributes, range: line.fullRange)
 
         // Every boundary where an inline style starts or stops, then each run between two boundaries.
         var runs: [Run] = spans.map { Run(range: $0.range, kind: .inline($0.style)) }
+        if showsImage && hidesSymbols { runs.append(Run(range: line.range, kind: .inline(.marker))) }
         runs += line.markers.map { Run(range: $0, kind: .inline(.marker)) }
         if let list = line.list {
             if list.bullet == nil { runs.append(Run(range: list.marker, kind: .number)) }
@@ -249,6 +279,31 @@ enum MarkdownStyler {
             paragraph.minimumLineHeight = lineHeight
             paragraph.maximumLineHeight = lineHeight
             self.decoration = isDecorated ? decoration : nil
+        }
+
+        /// Shows an image below the line: room for it after the line, and the drawing in the decoration.
+        /// Returns whether there's something to show.
+        mutating func showImage(_ result: ImageLoader.Result, columnWidth: CGFloat) -> Bool {
+            let decoration = self.decoration ?? LineDecoration()
+            let height: CGFloat
+            switch result {
+            case .image(let image):
+                let width = CGFloat(image.width), natural = CGFloat(image.height)
+                let scale = width > 0 ? min(1, max(columnWidth, 1) / width) : 1
+                decoration.image = image
+                decoration.imageSize = CGSize(width: (width * scale).rounded(), height: (natural * scale).rounded())
+                height = decoration.imageSize.height
+            case .needsAccess:
+                decoration.imageNeedsAccess = true
+                height = LineDecoration.accessPromptHeight
+            }
+            if hidesSymbols {
+                paragraph.minimumLineHeight = 2
+                paragraph.maximumLineHeight = 2
+            }
+            paragraph.paragraphSpacing = height + 14
+            self.decoration = decoration
+            return true
         }
 
         var attributes: [NSAttributedString.Key: Any] {

@@ -110,6 +110,25 @@ In a 10,000-word document, a keystroke costs about 2 ms in a Debug build, agains
 
 View → Show Markdown Source (⌘/) switches the selected tab to plain JetBrains Mono with no styling. Each tab keeps its own setting.
 
+## Formatting: toolbar, Format menu, shortcuts
+
+Every formatting action only inserts or removes markdown characters:
+
+- **`MarkdownCommands`** (`Editor/Commands.swift`, no AppKit) works out each action as edits plus the selection afterwards: toggling bold, italic, strikethrough and inline code, setting a paragraph style, toggling lists, inserting a divider or image on its own line, and writing a link. `CommandsTests` covers them with marked-up before/after text.
+- **`ZephTextView+Formatting`** has an `@objc` action for each, applying the edits as one undoable change (`shouldChangeText(inRanges:…)`). The Format menu's items target the first responder, so they reach the focused text view, and `validateMenuItem` ticks the styles that are on and turns everything off in `.txt` files.
+- **`FormattingState`** (`@Observable`, one per editor) holds what's on at the selection: paragraph style, inline styles, list kind, whether it's in a link, and page/source. The editor updates it on every selection change.
+- **`Toolbar`** (SwiftUI, under the tabs) calls the same actions on the focused editor and reads its `FormattingState`. View → Hide Toolbar (⌘⌥T) stores `showsToolbar` in the defaults.
+
+**Links.** ⌘K opens a popover (`LinkEditor`) to add a link, or to change the one the cursor is in. ⌘-click opens a link with a scheme in its app.
+
+**Images.** Format → Image… or dropping image files onto a markdown document copies them into an `assets` folder next to the document and inserts `![name](assets/name.png)` on its own line. A name that's taken gets a number.
+
+- The sandbox only gives the app the documents themselves. `FolderAccess` asks once per folder, with an Open panel already showing it, and remembers the answer with a security-scoped bookmark. This settles the plan's open question: the first image in a folder asks.
+- An untitled document is saved first.
+- An image alone on its line shows below that line, scaled to the column (never up). In Clean mode it stands in for its markdown. `ImageLoader` reads and caches images relative to the document's folder.
+- Web images aren't loaded: the app stays offline.
+- An image in a folder not yet allowed shows a dashed "Click to show images from this folder" box.
+
 ## Theme
 
 Color tokens are light/dark pairs in `Assets.xcassets`, collected in `Editor/Theme.swift`. Theme loads them by name rather than through Xcode's generated symbols, because those can only be used on the main thread, and TextKit 2 may draw on other threads. SwiftUI views use the generated symbols (`Color(.ink)`).

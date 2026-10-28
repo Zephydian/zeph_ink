@@ -22,6 +22,12 @@ final class Editor: NSObject {
     let isPlainText: Bool
     /// Called when this editor's text view takes the focus.
     var didBecomeFocused: (() -> Void)?
+    /// The styles at the selection, for the toolbar and the Format menu.
+    let formatting = FormattingState()
+
+    /// The folder the document is saved in (images are found relative to it).
+    var documentFolder: URL? { document?.fileURL?.deletingLastPathComponent() }
+    var documentForImages: MarkdownDocument? { document }
 
     /// What Return inserts: the line break the file already uses.
     var lineBreak: String { document?.format.lineBreak ?? "\n" }
@@ -30,12 +36,56 @@ final class Editor: NSObject {
     var isSourceMode = false {
         didSet {
             guard isSourceMode != oldValue else { return }
+            formatting.isSourceMode = isSourceMode
             restyleAll()
         }
     }
 
     private var mode: MarkdownStyler.Mode {
         isSourceMode || isPlainText ? .source : .page(MarkdownSymbols.current)
+    }
+
+    /// The images this document shows, loaded once.
+    private let images = ImageLoader()
+
+    private var imageContext: MarkdownStyler.Images? {
+        guard !isPlainText else { return nil }
+        let folder = documentFolder
+        return MarkdownStyler.Images(lookup: { [images] path in images.image(at: path, relativeTo: folder) },
+                                     columnWidth: textView.textContainer?.size.width ?? Theme.pageMaxWidth)
+    }
+
+    /// Images were added, or the person allowed a folder: load them again.
+    func imagesDidChange() {
+        images.forget()
+        restyleAll()
+    }
+
+    /// The person clicked "Click to show images from this folder".
+    func requestImageAccess() {
+        guard let folder = documentFolder, let window = textView.window else { return }
+        FolderAccess.request(folder, reason: "Allow Zeph#Ink to show the images in this folder.", in: window) { [weak self] allowed in
+            if allowed { self?.imagesDidChange() }
+        }
+    }
+
+    private var imageResize: DispatchWorkItem?
+
+    /// The text column changed width: images scale to fit it, so restyle the lines that show one.
+    func textColumnDidResize() {
+        guard !isPlainText, !isSourceMode, storage.string.contains("![") else { return }
+        imageResize?.cancel()
+        let resize = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            let text = storage.string as NSString
+            storage.beginEditing()
+            for (index, line) in analysis.lines.enumerated() where MarkdownStyler.imagePath(in: text.substring(with: line.range)) != nil {
+                MarkdownStyler.apply(analysis, to: storage, lines: index...index, mode: mode, revealed: revealed, images: imageContext)
+            }
+            storage.endEditing()
+        }
+        imageResize = resize
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: resize)
     }
 
     /// Whether Return, Tab and clicks act on markdown (lists, checkboxes).
@@ -102,7 +152,7 @@ final class Editor: NSObject {
     private func restyleAll() {
         analysis = MarkdownAnalysis(storage.string)
         storage.beginEditing()
-        MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed)
+        MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed, images: imageContext)
         storage.endEditing()
     }
 
@@ -111,7 +161,7 @@ final class Editor: NSObject {
         if let (updated, lines) = analysis.updated(afterEditing: edited, changeInLength: delta, in: storage.string) {
             analysis = updated
             revealed = linesTouching(edited)
-            MarkdownStyler.apply(analysis, to: storage, lines: lines, mode: mode, revealed: revealed)
+            MarkdownStyler.apply(analysis, to: storage, lines: lines, mode: mode, revealed: revealed, images: imageContext)
             scheduleFullCheck()
             return
         }
@@ -142,11 +192,11 @@ final class Editor: NSObject {
         }
 
         guard isLocal else {
-            MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed)
+            MarkdownStyler.applyAll(analysis, to: storage, mode: mode, revealed: revealed, images: imageContext)
             return
         }
         MarkdownStyler.apply(analysis, to: storage, lines: blockLines(around: firstEdited...lastEdited),
-                             mode: mode, revealed: revealed)
+                             mode: mode, revealed: revealed, images: imageContext)
     }
 
     private func linesTouching(_ range: NSRange) -> Set<Int> {
@@ -184,7 +234,7 @@ final class Editor: NSObject {
         analysis = full
         storage.beginEditing()
         for line in changed {
-            MarkdownStyler.apply(full, to: storage, lines: blockLines(around: line...line), mode: mode, revealed: revealed)
+            MarkdownStyler.apply(full, to: storage, lines: blockLines(around: line...line), mode: mode, revealed: revealed, images: imageContext)
         }
         storage.endEditing()
     }
@@ -212,7 +262,7 @@ final class Editor: NSObject {
         revealed = now
         storage.beginEditing()
         for line in changed {
-            MarkdownStyler.apply(analysis, to: storage, lines: line...line, mode: mode, revealed: revealed)
+            MarkdownStyler.apply(analysis, to: storage, lines: line...line, mode: mode, revealed: revealed, images: imageContext)
         }
         storage.endEditing()
     }
@@ -255,6 +305,7 @@ extension Editor: NSTextStorageDelegate {
 extension Editor: NSTextViewDelegate {
     func textViewDidChangeSelection(_ notification: Notification) {
         updateRevealedLines()
+        formatting.update(text: storage.string as NSString, selection: textView.selectedRange(), analysis: analysis)
     }
 }
 
