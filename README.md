@@ -42,6 +42,6 @@ Bug reports, ideas and pull requests are welcome. Please read [CONTRIBUTING.md](
 
 ## License
 
-Zeph#Ink is free software under the [MIT License](LICENSE) © 2026 ahmastan.
+Zeph#Ink is free software under the [MIT License](LICENSE) © 2026 Zephydian.
 
 It reads markdown with Apple's [swift-markdown](https://github.com/swiftlang/swift-markdown) (Apache 2.0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

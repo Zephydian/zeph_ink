@@ -10,6 +10,6 @@ Zeph#Ink has adopted the **[Contributor Covenant, version 2.1](https://www.contr
 
 ## Reporting
 
-If you experience or witness unacceptable behavior, contact the maintainer (**@ahmastan**) privately through GitHub. All reports will be reviewed promptly and handled confidentially.
+If you experience or witness unacceptable behavior, contact the Zephydian maintainers privately through GitHub. All reports will be reviewed promptly and handled confidentially.
 
 Maintainers may remove comments, commits, or other contributions that violate this Code of Conduct, and may temporarily or permanently ban contributors for inappropriate behavior, following the [enforcement guidelines](https://www.contributor-covenant.org/version/2/1/code_of_conduct/#enforcement-guidelines) of the Contributor Covenant.
