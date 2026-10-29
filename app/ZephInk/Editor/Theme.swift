@@ -138,7 +138,19 @@ nonisolated enum Theme {
 
     /// The body text size (the toolbar's size box, 12 points by default). Body text, lists, quotes and
     /// code are sized from it; headings aren't. Zoom scales the whole page on top of this.
-    static var bodySize: CGFloat { Preferences.textSize }
+    static var bodySize: CGFloat { Thread.current.threadDictionary[bodySizeKey] as? CGFloat ?? Preferences.textSize }
+
+    private static let bodySizeKey = "ZephInkBodySize"
+
+    /// Styles text at a fixed body size while `body` runs, whatever the setting (the markdown guide's
+    /// small examples).
+    static func withBodySize<Result>(_ size: CGFloat, _ body: () -> Result) -> Result {
+        let dictionary = Thread.current.threadDictionary
+        let outer = dictionary[bodySizeKey]
+        dictionary[bodySizeKey] = size
+        defer { dictionary[bodySizeKey] = outer }
+        return body()
+    }
     /// What heading sizes are worked out from: fixed, so titles and headings stay the same size when
     /// the body text size changes.
     static let headingBase: CGFloat = 12

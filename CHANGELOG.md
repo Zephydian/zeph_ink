@@ -51,5 +51,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Settings → PDF: page size (Automatic, Letter or A4, shared with the Paper page style) and page numbers. Margins follow the Margins setting.
 - File → Page Setup… (⌘⇧P) and Print… (⌘P) print the same pages.
 - Markdown tips: after you apply a style with a button, menu or shortcut, the status bar shows what you could type instead ("you can also type `## ` at the start of a line"). Each tip shows three times, then stops. Settings → Writing → Markdown tips turns them off.
+- A welcome window the first time Zeph#Ink opens: what a markdown editor is, what markdown can't do, and a way into the guide. Help → Welcome to Zeph#Ink shows it again.
+- Help → Markdown Guide: five short lessons (headings, bold and italic, lists and checklists, links, quotes and code). Each has an example to change, with what you type next to how it looks, as you type.
 - Help → Markdown Cheat Sheet (⌘?), and a ? button at the right of the toolbar: every style, its shortcut and its markdown.
 - Edit → Copy as Rich Text (⌥⇧⌘C) copies the selection formatted, without markdown symbols, to paste into Mail, Pages or Google Docs. Images next to the document come along.

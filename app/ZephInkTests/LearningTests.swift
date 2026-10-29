@@ -101,4 +101,38 @@ struct LearningTests {
             }
         }
     }
+
+    // MARK: Welcome and guide
+
+    @Test func theWelcomeWindowNeverOpensInTests() {
+        let previous = UserDefaults.standard.object(forKey: WelcomeWindowController.hasBeenShownKey)
+        defer { UserDefaults.standard.set(previous, forKey: WelcomeWindowController.hasBeenShownKey) }
+        UserDefaults.standard.removeObject(forKey: WelcomeWindowController.hasBeenShownKey)
+        WelcomeWindowController.showIfFirstLaunch()
+        #expect(!UserDefaults.standard.bool(forKey: WelcomeWindowController.hasBeenShownKey))
+    }
+
+    @Test func everyLessonExampleShowsItsStyle() {
+        let kinds = Lesson.all.map { MarkdownAnalysis($0.example) }
+        #expect(kinds[0].lines.contains { $0.kind == .heading(level: 1) })
+        #expect(kinds[1].spans.contains { $0.style.contains(.strong) })
+        #expect(kinds[2].lines.contains { $0.list?.task != nil })
+        #expect(kinds[3].spans.contains { $0.style.contains(.link) })
+        #expect(kinds[4].lines.contains { $0.quoteDepth > 0 })
+    }
+
+    @Test func thePreviewHidesSymbolsAtAFixedSize() {
+        Fonts.register()
+        let previous = UserDefaults.standard.object(forKey: Preferences.Key.textSize)
+        defer { UserDefaults.standard.set(previous, forKey: Preferences.Key.textSize) }
+        UserDefaults.standard.set(36.0, forKey: Preferences.Key.textSize)
+        let preview = MarkdownPreview()
+        preview.show("Some **bold** words")
+        let storage = preview.textView.textStorage!
+        let symbol = storage.attribute(.font, at: 5, effectiveRange: nil) as? NSFont    // the first *
+        let word = storage.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        #expect((symbol?.pointSize ?? 1) < 0.1)
+        #expect(word?.pointSize == MarkdownPreview.bodySize)
+        #expect(Theme.bodySize == 36)    // the setting itself is untouched
+    }
 }

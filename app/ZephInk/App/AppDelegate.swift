@@ -27,6 +27,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         restoredSession = Session.load()?.restore() ?? false
     }
 
+    /// The first time Zeph#Ink opens, the welcome window, in front of the new document.
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DispatchQueue.main.async { WelcomeWindowController.showIfFirstLaunch() }
+    }
+
+    /// Help → Welcome to Zeph#Ink.
+    @objc func showWelcome(_ sender: Any?) { WelcomeWindowController.show() }
+
+    /// Help → Markdown Guide.
+    @objc func showMarkdownGuide(_ sender: Any?) { MarkdownGuideWindowController.show() }
+
     /// Increase Contrast: faded markdown symbols get darker. Editors restyle when told a setting changed.
     @objc private func followAccessibilitySettings() {
         let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast

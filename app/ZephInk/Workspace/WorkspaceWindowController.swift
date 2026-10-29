@@ -22,6 +22,15 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         all.first { $0.window?.isKeyWindow == true } ?? all.first { $0.window?.isMainWindow == true } ?? all.first ?? makeNew()
     }
 
+    /// Brings a workspace window forward to write in (opening a new document if there's none).
+    static func bringForward() {
+        if let controller = all.first(where: { $0.window?.isMainWindow == true }) ?? all.first {
+            controller.window?.makeKeyAndOrderFront(nil)
+        } else {
+            NSDocumentController.shared.newDocument(nil)
+        }
+    }
+
     /// A new, empty workspace window, placed a little below and right of the frontmost one.
     static func makeNew() -> WorkspaceWindowController {
         let controller = WorkspaceWindowController()
