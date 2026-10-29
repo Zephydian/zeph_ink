@@ -130,10 +130,18 @@ enum MarkdownStyler {
            let result = images.lookup(path) {
             showsImage = block.showImage(result, columnWidth: images.columnWidth)
         }
+        // Text with its own size bigger than the line's makes the line taller, so it doesn't overlap.
+        if let biggest = spans.compactMap(\.size).max(), biggest > block.font.size {
+            let height = (biggest * Theme.bodyLineHeight).rounded()
+            if height > block.paragraph.maximumLineHeight {
+                block.paragraph.minimumLineHeight = height
+                block.paragraph.maximumLineHeight = height
+            }
+        }
         storage.setAttributes(block.attributes, range: line.fullRange)
 
         // Every boundary where an inline style starts or stops, then each run between two boundaries.
-        var runs: [Run] = spans.map { Run(range: $0.range, kind: .inline($0.style)) }
+        var runs: [Run] = spans.map { Run(range: $0.range, kind: .inline($0.style), size: $0.size) }
         if showsImage && hidesSymbols { runs.append(Run(range: line.range, kind: .inline(.marker))) }
         if case .frontMatter(let part) = line.kind {
             if hidesSymbols && collapsesFrontMatter && !part.isFirst {
@@ -193,6 +201,17 @@ enum MarkdownStyler {
             if extra > 0 { storage.addAttribute(.kern, value: extra, range: NSRange(location: NSMaxRange(symbol) - 1, length: 1)) }
         }
 
+        // A line with bigger (or smaller) text: every piece of it sits on one baseline, centered for the
+        // biggest text, so sizes line up like in a word processor.
+        if let biggest = spans.filter({ $0.size != nil }).isEmpty ? nil : max(spans.compactMap(\.size).max() ?? 0, block.font.size) {
+            let font = FontSpec(family: block.font.family, size: biggest).font
+            let offset = BlockStyle.centeringOffset(for: font, lineHeight: block.paragraph.maximumLineHeight)
+            storage.enumerateAttribute(.font, in: line.fullRange) { value, range, _ in
+                guard (value as? NSFont)?.pointSize ?? 0 > 1 else { return }   // hidden symbols stay as they are
+                storage.addAttribute(.baselineOffset, value: offset, range: range)
+            }
+        }
+
         // A list item's wrapped lines line up with its text, after the marker as it's drawn.
         if let list = line.list, list.contentStart > line.range.location {
             let prefix = storage.attributedSubstring(from: NSRange(location: line.range.location,
@@ -218,6 +237,8 @@ enum MarkdownStyler {
 
         var range: NSRange
         var kind: Kind
+        /// Text with its own size (`<span style="font-size:…">`).
+        var size: CGFloat?
     }
 
     // MARK: - Block look
@@ -379,6 +400,7 @@ enum MarkdownStyler {
             }
 
             var spec = font
+            if let size = runs.compactMap(\.size).last { spec.size = size }
             var attributes: [NSAttributedString.Key: Any] = [:]
             if style.contains(.strong) { spec.weight = 700 }
             if style.contains(.emphasis) { spec.italic.toggle() }
@@ -415,6 +437,7 @@ enum MarkdownStyler {
                 attributes[.strikethroughStyle] = 0
             }
             attributes[.font] = spec.font
+
             return attributes
         }
 

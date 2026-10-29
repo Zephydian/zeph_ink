@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// One tab per open document, then a + button for a new one. The empty space drags the window.
+/// One tab per open document with a + for a new one right after them, and an Open button on the
+/// right. The empty space drags the window.
 ///
 /// Drag a tab along the bar to reorder it. Drag it down onto an editor to open it beside that pane
 /// (the half it would go to is tinted), onto another window to move it there, or anywhere else to
@@ -38,24 +39,39 @@ struct TabBar: View {
                             .zIndex(dragged == tab.id ? 1 : 0)
                             .gesture(drag(tab))
                     }
+                    // New tab, right after the last one (like a browser).
+                    Button {
+                        NSDocumentController.shared.newDocument(nil)
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverButtonStyle())
+                    .help("New document — ⌘N")
+                    .accessibilityLabel("New document")
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
             .layoutPriority(1)
 
+            Spacer(minLength: 0)
+
+            // Open sits on the right, where the window's own buttons would be.
             Button {
-                NSDocumentController.shared.newDocument(nil)
+                NSDocumentController.shared.openDocument(nil)
             } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(width: 28, height: 28)
+                Label("Open", systemImage: "folder")
+                    .labelStyle(.titleAndIcon)
+                    .font(.system(size: 12))
+                    .padding(.horizontal, 8)
+                    .frame(height: 26)
                     .contentShape(Rectangle())
             }
             .buttonStyle(HoverButtonStyle())
-            .help("New document (⌘N)")
-            .accessibilityLabel("New document")
-
-            Spacer(minLength: 0)
+            .help("Open a markdown or text file — ⌘O")
+            .accessibilityLabel("Open a file")
         }
         .padding(.leading, Theme.trafficLightsWidth)
         .padding(.trailing, 10)

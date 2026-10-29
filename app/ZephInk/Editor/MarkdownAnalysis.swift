@@ -97,6 +97,14 @@ nonisolated struct MarkdownAnalysis {
     struct Span: Hashable {
         var range: NSRange
         var style: InlineStyle
+        /// For `.sized` text: its size in points.
+        var size: CGFloat?
+
+        init(range: NSRange, style: InlineStyle, size: CGFloat? = nil) {
+            self.range = range
+            self.style = style
+            self.size = size
+        }
     }
 
     struct InlineStyle: OptionSet, Hashable {
@@ -110,6 +118,8 @@ nonisolated struct MarkdownAnalysis {
         static let marker = InlineStyle(rawValue: 1 << 5)
         /// `==text==`: not standard markdown (swift-markdown doesn't know it), found by `Builder`.
         static let highlight = InlineStyle(rawValue: 1 << 6)
+        /// `<span style="font-size:18pt">text</span>`: a size for some text (markdown has none of its own).
+        static let sized = InlineStyle(rawValue: 1 << 7)
     }
 
     var lines: [Line] = []
@@ -392,6 +402,7 @@ nonisolated private struct Builder {
     mutating func finish() {
         defer { markAlignment() }
         markHighlights()
+        markSizedText()
         for index in lines.indices {
             let line = lines[index]
             if line.kind == .body, line.list == nil,
@@ -421,6 +432,25 @@ nonisolated private struct Builder {
                 open = nil
             } else if let open {
                 lines[index].alignment = open
+            }
+        }
+    }
+
+    /// Finds text with its own size, `<span style="font-size:18pt">…</span>`, on text lines outside code.
+    private mutating func markSizedText() {
+        let code = spans.filter { $0.style == .code }.map(\.range)
+        for line in lines where line.range.length > 30 {
+            switch line.kind {
+            case .code, .table, .divider, .blank, .frontMatter: continue
+            default: break
+            }
+            for match in Patterns.sizedText.matches(in: text as String, range: line.range) {
+                let whole = match.range, content = match.range(at: 2)
+                guard content.length > 0, !code.contains(where: { NSIntersectionRange($0, whole).length > 0 }),
+                      let size = Double(text.substring(with: match.range(at: 1))), size >= 4, size <= 200 else { continue }
+                spans.append(.init(range: content, style: .sized, size: CGFloat(size)))
+                spans.append(.init(range: NSRange(location: whole.location, length: content.location - whole.location), style: .marker))
+                spans.append(.init(range: NSRange(location: NSMaxRange(content), length: NSMaxRange(whole) - NSMaxRange(content)), style: .marker))
             }
         }
     }
@@ -471,6 +501,8 @@ nonisolated private enum Patterns {
     static let listMarker = regex(#"^(?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$)"#)
     static let taskBox = regex(#"^\[[ xX]\][ \t]?"#)
     static let highlight = regex(#"==(?=[^\s=])(?:[^=]|=(?!=))*?(?<=[^\s=])=="#)
+    static let sizedText = try! NSRegularExpression(
+        pattern: #"<span style=["']font-size:\s*(\d{1,3}(?:\.\d)?)pt;?["']>(.+?)</span>"#, options: [.caseInsensitive])
     static let alignOpen = try! NSRegularExpression(pattern: #"^[ \t]*<div[ \t]+align=["']?(left|center|right)["']?[ \t]*>[ \t]*$"#,
                                                    options: [.caseInsensitive])
     static let alignClose = try! NSRegularExpression(pattern: #"^[ \t]*</div>[ \t]*$"#, options: [.caseInsensitive])

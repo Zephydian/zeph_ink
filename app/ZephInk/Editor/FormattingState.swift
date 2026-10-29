@@ -10,6 +10,8 @@ final class FormattingState {
     var list: MarkdownCommands.ListKind?
     var isInLink = false
     var alignment: MarkdownCommands.Alignment = .left
+    /// The size of the text at the selection, if it has its own (otherwise the default text size).
+    var textSize: CGFloat?
     /// The pane shows the markdown source rather than the page.
     var isSourceMode = false
 
@@ -21,6 +23,8 @@ final class FormattingState {
         let list = MarkdownCommands.list(at: selection.location, in: text)
         let isInLink = MarkdownCommands.link(at: selection, in: text, analysis: analysis) != nil
         let alignment = MarkdownCommands.alignment(at: selection.location, analysis: analysis)
+        let textSize = MarkdownCommands.sizedText(at: selection, in: text, analysis: analysis)?.size
+        if self.textSize != textSize { self.textSize = textSize }
         if self.alignment != alignment { self.alignment = alignment }
         // Only assign what changed, so SwiftUI redraws only what it must.
         if self.paragraph != paragraph { self.paragraph = paragraph }

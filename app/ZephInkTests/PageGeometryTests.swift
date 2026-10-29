@@ -8,14 +8,21 @@ struct PageGeometryTests {
     private let letter = NSSize(width: 612, height: 792)
     private let custom = NSSize(width: 432, height: 648)
 
+    /// The page geometry at the default 12-point text (the real app's text size setting is shared with
+    /// the tests, so it's set for the moment and put back).
     private func make(_ style: Preferences.PageStyle, width: CGFloat = 1000) -> PageGeometry {
-        PageGeometry.make(style: style, margins: .normal, paper: letter, custom: custom, viewWidth: width)
+        let previous = UserDefaults.standard.object(forKey: Preferences.Key.textSize)
+        UserDefaults.standard.set(12.0, forKey: Preferences.Key.textSize)
+        defer { UserDefaults.standard.set(previous, forKey: Preferences.Key.textSize) }
+        return PageGeometry.make(style: style, margins: .normal, paper: letter, custom: custom, viewWidth: width)
     }
+
+    private var pageMaxWidth: CGFloat { 612 }
 
     @Test func continuousIsOnePageWithoutBreaks() {
         let page = make(.continuous)
         #expect(!page.isPaged)
-        #expect(page.pageSize.width == Theme.pageMaxWidth)
+        #expect(page.pageSize.width == pageMaxWidth)
         #expect(page.breaks(pages: 3, width: 500).isEmpty)
         #expect(page.pageCount(forTextHeight: 50_000) == 1)
     }
@@ -44,7 +51,7 @@ struct PageGeometryTests {
     }
 
     @Test func squareAndCustomUseTheirSizes() {
-        #expect(make(.square).pageSize == NSSize(width: Theme.pageMaxWidth, height: Theme.pageMaxWidth))
+        #expect(make(.square).pageSize == NSSize(width: pageMaxWidth, height: pageMaxWidth))
         #expect(make(.custom).pageSize == custom)
     }
 

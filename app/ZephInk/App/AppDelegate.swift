@@ -30,10 +30,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
     }
 
-    /// Format → Text Size → Bigger and Smaller, one size at a time.
-    @objc func makeTextBigger(_ sender: Any?) { Preferences.setTextSize(Preferences.textSize(after: Preferences.textSize, bigger: true)) }
-    @objc func makeTextSmaller(_ sender: Any?) { Preferences.setTextSize(Preferences.textSize(after: Preferences.textSize, bigger: false)) }
-
     /// View → Zoom In (⌘+), Zoom Out (⌘−) and Actual Size (⌥⌘0), in the steps the status bar's
     /// zoom menu offers.
     @objc func zoomIn(_ sender: Any?) { Preferences.setZoom(Zoom.step(from: Preferences.zoom, up: true)) }

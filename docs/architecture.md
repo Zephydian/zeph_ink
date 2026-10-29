@@ -182,7 +182,15 @@ Increase Contrast swaps faded symbols for the secondary ink.
 
 ## Text size
 
-`Preferences.textSize` (12 points by default) is the body text size, like Word's font size. Markdown can't store sizes, so it's one setting for every document. `Theme.bodySize` reads it, and everything on the page is sized from that: headings, code (`sourceSize`), line heights, list indents and checkboxes. The Continuous page is 51 times the text size wide (612 points at 12 pt, a Letter page's width), so lines stay a comfortable length. Paper, Square and Custom pages keep their real sizes. Zoom magnifies on top of the text size.
+**Default text size.** `Preferences.textSize` (Settings → Default text size, 12 points) is the body size. `Theme.bodySize` reads it, and everything on the page is sized from that: headings, code (`sourceSize`), line heights, list indents and checkboxes. The Continuous page is 51 times it wide (612 points at 12 pt, a Letter page's width). Paper, Square and Custom pages keep their real sizes.
+
+**Text with its own size.** The toolbar's size box and Format → Bigger Text / Smaller Text size the selection, or the cursor's line, like Word's font size. Markdown has no sizes, so `MarkdownCommands.setTextSize` wraps the text in `<span style="font-size:18pt">…</span>`. Choosing the default size takes the span away.
+
+- `MarkdownAnalysis` finds these spans with a pattern (outside code) and records each one's size. The tags are symbols that hide in Clean mode.
+- A line holding bigger text grows taller, and all its text shares one baseline.
+- GitHub strips the style, so there the text shows at the normal size.
+
+Zoom magnifies on top of all of this.
 
 ## Zoom
 

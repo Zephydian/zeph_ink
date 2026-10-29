@@ -218,6 +218,83 @@ nonisolated enum MarkdownCommands {
         return Result(edits: [Edit(range: replaced, replacement: replacement)], selection: NSRange(location: location, length: 0))
     }
 
+    // MARK: - Text size
+
+    /// The sized text the selection is in: the whole `<span …>…</span>`, its text and its size.
+    static func sizedText(at selection: NSRange, in text: NSString, analysis: MarkdownAnalysis)
+        -> (whole: NSRange, content: NSRange, size: CGFloat)? {
+        for span in analysis.spans where span.style == .sized {
+            guard let size = span.size else { continue }
+            let opening = analysis.spans.first { $0.style == .marker && NSMaxRange($0.range) == span.range.location }
+            let closing = analysis.spans.first { $0.style == .marker && $0.range.location == NSMaxRange(span.range) }
+            guard let opening, let closing else { continue }
+            let whole = NSRange(location: opening.range.location, length: NSMaxRange(closing.range) - opening.range.location)
+            if selection.location >= whole.location, NSMaxRange(selection) <= NSMaxRange(whole) {
+                return (whole, span.range, size)
+            }
+        }
+        return nil
+    }
+
+    /// The opening tag for text of a size: `<span style="font-size:18pt">`.
+    static func sizeTag(_ size: CGFloat) -> String {
+        let points = size.rounded() == size ? String(Int(size)) : String(format: "%.1f", Double(size))
+        return "<span style=\"font-size:\(points)pt\">"
+    }
+
+    /// Gives the selection (or, with nothing selected, the text of the cursor's line) its own size.
+    /// Markdown has no sizes, so it's saved as `<span style="font-size:18pt">…</span>`. The default
+    /// size (or nil) takes the span away.
+    static func setTextSize(_ size: CGFloat?, defaultSize: CGFloat, text: NSString, selection: NSRange,
+                            analysis: MarkdownAnalysis) -> Result {
+        let isDefault = size == nil || abs((size ?? 0) - defaultSize) < 0.01
+        if let (whole, content, _) = sizedText(at: selection, in: text, analysis: analysis) {
+            let inner = text.substring(with: content)
+            let opening = content.location - whole.location
+            if isDefault {
+                return Result(edits: [Edit(range: whole, replacement: inner)],
+                              selection: NSRange(location: max(selection.location - opening, whole.location),
+                                                 length: min(selection.length, (inner as NSString).length)))
+            }
+            let tag = sizeTag(size!)
+            let replacement = tag + inner + "</span>"
+            let shift = (tag as NSString).length - opening
+            return Result(edits: [Edit(range: whole, replacement: replacement)],
+                          selection: NSRange(location: selection.location + (selection.location >= content.location ? shift : 0), length: selection.length))
+        }
+        guard !isDefault, let size else { return Result(edits: [], selection: selection) }
+        let tag = sizeTag(size)
+        // The text to size: the selection if it's on one line, otherwise each line's own text.
+        var targets: [NSRange] = []
+        let lines = lines(touching: selection, in: text)
+        if selection.length > 0, lines.count == 1 {
+            targets = [trimmingWhitespace(selection, in: text)]
+        } else {
+            for line in lines {
+                let prefix = prefix(of: text.substring(with: line))
+                let content = NSRange(location: line.location + prefix.contentStart, length: line.length - prefix.contentStart)
+                let trimmed = trimmingWhitespace(content, in: text)
+                if trimmed.length > 0 { targets.append(trimmed) }
+            }
+        }
+        guard !targets.isEmpty else { return Result(edits: [], selection: selection) }
+        var edits: [Edit] = []
+        for target in targets.reversed() {
+            edits.append(Edit(range: NSRange(location: NSMaxRange(target), length: 0), replacement: "</span>"))
+            edits.append(Edit(range: NSRange(location: target.location, length: 0), replacement: tag))
+        }
+        func map(_ position: Int) -> Int {
+            var mapped = position
+            for target in targets {
+                if position >= target.location { mapped += (tag as NSString).length }
+                if position > NSMaxRange(target) { mapped += 7 }   // "</span>"
+            }
+            return mapped
+        }
+        let start = map(selection.location), end = map(NSMaxRange(selection))
+        return Result(edits: edits, selection: NSRange(location: start, length: max(end - start, 0)))
+    }
+
     // MARK: - Return inside a style
 
     /// Return pressed inside bold, italic and the like: closes each style at the cursor, so the text

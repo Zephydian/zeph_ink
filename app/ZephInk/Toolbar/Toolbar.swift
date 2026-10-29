@@ -25,7 +25,7 @@ struct Toolbar: View {
                     plainButton("arrow.uturn.forward", "Redo", "⌘⇧Z") { $0.undoManager?.redo() }
                     Separator()
                     StyleMenuButton(editor: editor, isOff: isOff, run: run)
-                    TextSizeMenu()
+                    TextSizeMenu(size: state.textSize, isOff: isOff) { size in run { $0.setTextSize(size) } }
                     Separator()
                     button("text.alignleft", .symbol, "Align left", "⌘{", "the normal alignment", on: state.alignment == .left) { $0.alignLeft(nil) }
                     button("text.aligncenter", .symbol, "Center", "⌘|", "<div align=\"center\"> around the paragraph",
@@ -168,22 +168,25 @@ private struct StyleMenuButton: View {
     }
 }
 
-/// The text size, like Word's font size box: every document's page text, in points.
+/// The text size box, like Word's: shows the size at the cursor and sets the selection's size (or the
+/// cursor's line's). Choosing the default size takes a size away.
 private struct TextSizeMenu: View {
-    @AppStorage(Preferences.Key.textSize) private var size = 12.0
+    /// The selection's own size, if it has one.
+    let size: CGFloat?
+    let isOff: Bool
+    let set: (CGFloat) -> Void
+    @AppStorage(Preferences.Key.textSize) private var defaultSize = 12.0
+    @State private var isOpen = false
+
+    private var shown: Double { Double(size ?? CGFloat(defaultSize)) }
 
     var body: some View {
-        Menu {
-            ForEach(Preferences.textSizes, id: \.self) { step in
-                Button {
-                    Preferences.setTextSize(step)
-                } label: {
-                    if abs(Double(step) - size) < 0.01 { Label(step.formatted(), systemImage: "checkmark") } else { Text(step.formatted()) }
-                }
-            }
+        Button {
+            if !isOff { isOpen.toggle() }
         } label: {
             HStack(spacing: 4) {
-                Text(CGFloat(size).formatted()).font(.system(size: 13).monospacedDigit())
+                Text(CGFloat(shown).formatted()).font(.system(size: 13).monospacedDigit())
+                Spacer(minLength: 2)
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(Color(nsColor: Theme.chromeInkSecondary))
             }
@@ -193,13 +196,53 @@ private struct TextSizeMenu: View {
             .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(nsColor: Theme.chromeLine)))
             .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
+        .buttonStyle(.plain)
         .foregroundStyle(Color(nsColor: Theme.chromeInk))
+        .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(Preferences.textSizes, id: \.self) { step in
+                    SizeRow(size: step, isCurrent: abs(Double(step) - shown) < 0.01,
+                            isDefault: abs(Double(step) - defaultSize) < 0.01) {
+                        isOpen = false
+                        set(step)
+                    }
+                }
+            }
+            .padding(6)
+            .frame(width: 130)
+        }
         .padding(.leading, 4)
-        .help("Text size, in points — Format → Bigger Text / Smaller Text")
-        .accessibilityLabel("Text size, \(CGFloat(size).formatted()) points")
+        .disabled(isOff)
+        .opacity(isOff ? 0.35 : 1)
+        .help("Text size of the selection, in points — ⌥⌘> / ⌥⌘<. Saved as HTML (<span style=\"font-size:…\">), which GitHub shows at normal size.")
+        .accessibilityLabel("Text size, \(CGFloat(shown).formatted()) points")
+    }
+}
+
+private struct SizeRow: View {
+    let size: CGFloat
+    let isCurrent: Bool
+    let isDefault: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(size.formatted()).font(.system(size: 13).monospacedDigit())
+                Spacer()
+                if isDefault { Text("default").font(.system(size: 11)).foregroundStyle(Color(nsColor: Theme.chromeInkSecondary)) }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 6).fill(isHovered || isCurrent ? Color(nsColor: Theme.accentSoft) : .clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color(nsColor: Theme.chromeInk))
+        .onHover { isHovered = $0 }
+        .accessibilityLabel("\(size.formatted()) points" + (isDefault ? ", default" : ""))
+        .accessibilityAddTraits(isCurrent ? .isSelected : [])
     }
 }
 
