@@ -137,6 +137,9 @@ extension ZephTextView {
             return
         }
         let ranges = edits.map { NSValue(range: $0.range) }
+        // Each formatting change is an undo step of its own, never merged with the typing around it.
+        breakUndoCoalescing()
+        defer { breakUndoCoalescing() }
         guard shouldChangeText(inRanges: ranges, replacementStrings: edits.map(\.replacement)), let textStorage else { return }
         textStorage.beginEditing()
         for edit in edits { textStorage.replaceCharacters(in: edit.range, with: edit.replacement) }

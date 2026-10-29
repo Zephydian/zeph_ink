@@ -38,6 +38,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Body text size: the size box in the toolbar (8 to 36 points, 12 by default), Format → Bigger Text / Smaller Text (⌥⌘> / ⌥⌘<), and Settings. It sizes the body text of every document; titles and headings keep their sizes. With body text on the page, Zeph#Ink asks before changing it.
 - The + for a new document sits right after the last tab, and an Open button is at the top right.
 - Undo and redo in the toolbar grey out when there's nothing to undo or redo.
+- Undo goes back in sensible steps, like a word processor: a word or a burst of typing at a time, and each paste, Return and formatting change on its own.
+- Return starts a new paragraph, with a blank line before it so paragraphs are spaced apart. Shift-Return starts a new line in the same paragraph.
 - Zoom, like Word's: a zoom control at the bottom left (−, a slider, +, and a menu of sizes with Fit Page Width), View → Zoom In (⌘+), Zoom Out (⌘−) and Actual Size (⌥⌘0), or pinch on a trackpad. Pages no longer look small on big displays.
 - Increase Contrast makes faded markdown symbols darker, and Reduce Motion turns off animations.
 - Front matter (a YAML block at the top of a file) shows as a tidy "Document info" card; click its header to fold it.

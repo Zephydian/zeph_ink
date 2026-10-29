@@ -9,6 +9,31 @@ final class ZephTextView: NSTextView {
     /// The editor this view belongs to, for the markdown it has worked out.
     weak var editor: Editor?
 
+    // MARK: - Undo in sensible steps
+
+    /// When the last character was typed, to start a new undo step after a pause.
+    private var lastTyped = Date.distantPast
+
+    /// Typing is undone a word at a time (and after a pause), like a word processor, instead of
+    /// everything typed since the cursor last moved.
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        let typed = (string as? String) ?? (string as? NSAttributedString)?.string ?? ""
+        if Date().timeIntervalSince(lastTyped) > 1.5 { breakUndoCoalescing() }
+        super.insertText(string, replacementRange: replacementRange)
+        lastTyped = Date()
+        if let last = typed.last, typed.count == 1, last.isWhitespace || ".,;:!?".contains(last) {
+            breakUndoCoalescing()   // the word just finished is one step
+        }
+    }
+
+    /// Inserts text as a step of its own (a paste, a line break, a formatting change).
+    func insertAsOneStep(_ text: String, replacing range: NSRange) {
+        breakUndoCoalescing()
+        super.insertText(text, replacementRange: range)
+        breakUndoCoalescing()
+        lastTyped = .distantPast
+    }
+
     // MARK: - The page
 
     /// The pages for this view's width and the current settings.
@@ -226,7 +251,7 @@ final class ZephTextView: NSTextView {
         let selection = selectedRange()
         guard editor?.handlesMarkdownInput == true, let item = listLine(at: selection.location),
               selection.location >= item.contentStart else {
-            insertText(lineBreak, replacementRange: selection)
+            insertAsOneStep(startsParagraph(at: selection) ? lineBreak + lineBreak : lineBreak, replacing: selection)
             return
         }
         let rest = NSRange(location: item.contentStart, length: NSMaxRange(item.range) - item.contentStart)
@@ -245,9 +270,23 @@ final class ZephTextView: NSTextView {
     /// The line break the document already uses, so a new line matches its neighbours.
     private var lineBreak: String { editor?.lineBreak ?? "\n" }
 
-    /// Shift-Return would insert a Unicode line separator, which markdown doesn't know: make it a line break.
+    /// Whether Return here starts a new paragraph (with a blank line before it, which is what spaces
+    /// paragraphs apart in markdown): at the end of, or inside, a line of text, but not in code, a
+    /// table, front matter, or on a line that's already empty.
+    private func startsParagraph(at selection: NSRange) -> Bool {
+        guard let editor, editor.handlesMarkdownInput, !editor.analysis.lines.isEmpty else { return false }
+        let line = editor.analysis.lines[editor.analysis.lineIndex(at: selection.location)]
+        guard line.range.length > 0, selection.location > line.range.location else { return false }
+        switch line.kind {
+        case .body, .heading: return line.quoteDepth == 0
+        default: return false
+        }
+    }
+
+    /// Shift-Return: a new line in the same paragraph, with no space before it. (NSTextView would insert
+    /// a Unicode line separator, which markdown doesn't know.)
     override func insertLineBreak(_ sender: Any?) {
-        insertNewline(sender)
+        insertAsOneStep(lineBreak, replacing: selectedRange())
     }
 
     /// Paste: formatted text (from a web page, Word, Google Docs…) arrives as markdown, so bold stays
@@ -258,7 +297,7 @@ final class ZephTextView: NSTextView {
         let pasteboard = NSPasteboard.general
         if editor.handlesMarkdownInput, !editor.isSourceMode,
            let markdown = RichPaste.markdown(from: pasteboard, lineBreak: editor.lineBreak) {
-            insertText(markdown, replacementRange: selectedRange())
+            insertAsOneStep(markdown, replacing: selectedRange())
             return
         }
         pasteAsPlainText(sender)
@@ -271,7 +310,7 @@ final class ZephTextView: NSTextView {
             return
         }
         let normalized = FileText(encoding: .utf8, byteOrderMark: Data(), lineBreak: editor.lineBreak).normalizingLineBreaks(text)
-        insertText(normalized, replacementRange: selectedRange())
+        insertAsOneStep(normalized, replacing: selectedRange())
     }
 
     override func becomeFirstResponder() -> Bool {
@@ -324,6 +363,8 @@ final class ZephTextView: NSTextView {
 
     /// Changes text the way typing does: undoable, and the selection follows.
     func replace(_ range: NSRange, with replacement: String) {
+        breakUndoCoalescing()
+        defer { breakUndoCoalescing() }
         guard shouldChangeText(in: range, replacementString: replacement), let textStorage else { return }
         textStorage.replaceCharacters(in: range, with: replacement)
         didChangeText()

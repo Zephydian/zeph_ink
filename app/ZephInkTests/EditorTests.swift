@@ -149,8 +149,8 @@ struct EditorTests {
         #expect(try pressReturn(in: "- one\n- [ ] ") == "- one\n")
     }
 
-    @Test func returnOutsideAListIsAPlainLineBreak() throws {
-        #expect(try pressReturn(in: "Just text") == "Just text\n")
+    @Test func returnOutsideAListStartsAParagraph() throws {
+        #expect(try pressReturn(in: "Just text") == "Just text\n\n")   // a new paragraph
         #expect(try pressReturn(in: "- one", at: 0) == "\n- one")
     }
 
@@ -208,9 +208,9 @@ struct EditorFileTests {
     @Test func returnUsesTheFilesLineBreaks() throws {
         let (document, editor) = try editor("one\r\ntwo")
         editor.textView.setSelectedRange(NSRange(location: 8, length: 0))
-        editor.textView.insertNewline(nil)
-        editor.textView.insertLineBreak(nil)
-        #expect(document.storage.string == "one\r\ntwo\r\n\r\n")
+        editor.textView.insertNewline(nil)     // a new paragraph: a blank line, then the new one
+        editor.textView.insertLineBreak(nil)   // Shift-Return: one more line
+        #expect(document.storage.string == "one\r\ntwo\r\n\r\n\r\n")
     }
 
     @Test func plainTextFilesAreMonospacedWithoutMarkdown() throws {
@@ -221,5 +221,62 @@ struct EditorFileTests {
         editor.textView.setSelectedRange(NSRange(location: (document.storage.string as NSString).length, length: 0))
         editor.textView.insertNewline(nil)
         #expect(document.storage.string == "# not a heading\n- not a list\n")
+    }
+}
+
+/// Undo goes back one sensible step at a time: a paste, a formatting change. (Typing a word at a time
+/// needs real key presses in a window in front, so it's checked by hand.)
+@MainActor
+struct UndoTests {
+    /// Runs one "event" (a key press, a paste) in an undo group of its own, as AppKit does. Tests have
+    /// no real events, so the grouping is done by hand.
+    private func event(_ undo: UndoManager, _ action: () -> Void) {
+        undo.beginUndoGrouping()
+        action()
+        undo.endUndoGrouping()
+    }
+
+    private func workspace(_ text: String) throws -> (MarkdownDocument, ZephTextView, UndoManager) {
+        Fonts.register()
+        let document = MarkdownDocument()
+        try document.read(from: Data(text.utf8), ofType: MarkdownDocument.markdownType)
+        let controller = WorkspaceWindowController.makeNew()
+        controller.add(document)
+        let textView = try #require(controller.workspace.selectedTab?.editor.textView)
+        // The text view gets its undo manager from the window, once SwiftUI has put it there.
+        controller.window?.setContentSize(NSSize(width: 900, height: 600))
+        for _ in 0..<20 where textView.window == nil {
+            controller.window?.layoutIfNeeded()
+            RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        let undo = try #require(textView.undoManager)
+        undo.groupsByEvent = false
+        return (document, textView, undo)
+    }
+
+    private func type(_ text: String, into textView: ZephTextView, _ undo: UndoManager) {
+        for character in text {
+            event(undo) { textView.insertText(String(character), replacementRange: textView.selectedRange()) }
+        }
+    }
+
+    @Test func undoAfterAPasteTakesOnlyThePaste() throws {
+        let (document, textView, undo) = try workspace("")
+        type("# Title", into: textView, undo)
+        event(undo) { textView.insertNewline(nil) }
+        event(undo) { textView.insertAsOneStep("Pasted paragraph.", replacing: textView.selectedRange()) }
+        undo.undo()
+        #expect(document.storage.string == "# Title\n\n")
+    }
+
+    @Test func aFormattingChangeIsItsOwnStep() throws {
+        let (document, textView, undo) = try workspace("")
+        type("word", into: textView, undo)
+        event(undo) {
+            textView.setSelectedRange(NSRange(location: 0, length: 4))
+            textView.toggleBold(nil)
+        }
+        undo.undo()
+        #expect(document.storage.string == "word")
     }
 }

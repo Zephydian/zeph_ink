@@ -129,6 +129,13 @@ Every formatting action only inserts or removes markdown characters:
 
 **Return inside a style** (`*hel|lo*`): `MarkdownCommands.closeInlineStyles` closes the styles at the cursor before the line break, so the new line starts plain. swift-markdown reports one range for directly nested styles (`***both***`), so bold, italic and strikethrough take their ranges from their delimiter characters, and a nested style takes its parent's inside.
 
+**Undo steps.** NSTextView merges all typing since the cursor last moved into one undo step, and pasting with `insertText` joined it. `ZephTextView` breaks the merging (`breakUndoCoalescing`) to make undo steps like a word processor's:
+
+- after each word (a space or punctuation), and after a pause of 1.5 seconds
+- around every paste, line break and formatting change (`insertAsOneStep`, `replace`, `apply`)
+
+**Return and Shift-Return.** Return on a line of text (body or heading, outside quotes) inserts two line breaks: a blank line and the new paragraph, which is how markdown separates paragraphs and spaces them apart. In lists, code, tables, front matter and on empty lines it inserts one. Shift-Return (`insertLineBreak`) always inserts one, so the next line stays in the same paragraph.
+
 **Links.** ⌘K opens a popover (`LinkEditor`) to add a link, or to change the one the cursor is in. ⌘-click opens a link with a scheme in its app.
 
 **Images.** Format → Image… or dropping image files onto a markdown document copies them into an `assets` folder next to the document and inserts `![name](assets/name.png)` on its own line. A name that's taken gets a number.
