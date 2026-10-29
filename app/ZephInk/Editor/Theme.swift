@@ -92,14 +92,36 @@ nonisolated enum Theme {
         }
     }
 
-    /// Whether the page stays white in this appearance (White Page, in a theme that isn't light).
+    /// Whether the page stays white in this appearance (White Page, in a theme that isn't light, and
+    /// always on paper).
     static func usesWhitePage(for appearance: NSAppearance) -> Bool {
+        if isPrinting { return true }
         guard Preferences.whitePage else { return false }
         switch Preferences.theme {
         case .light: return false
         case .system: return appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         default: return true
         }
+    }
+
+    // MARK: Printing
+
+    private static let printingKey = "ZephInkPrinting"
+
+    /// Whether this thread is drawing a printed or exported page, which always has the Light theme's
+    /// page colors. It's per thread, so editors drawing on other threads keep their theme.
+    static var isPrinting: Bool { Thread.current.threadDictionary[printingKey] != nil }
+
+    /// Lays out or draws paper: page colors are the Light theme's while `body` runs.
+    static func printing<Result>(_ body: () -> Result) -> Result {
+        let dictionary = Thread.current.threadDictionary
+        let outer = dictionary[printingKey] != nil
+        dictionary[printingKey] = true
+        defer { if !outer { dictionary.removeObject(forKey: printingKey) } }
+        guard let light = NSAppearance(named: .aqua) else { return body() }
+        var result: Result?
+        light.performAsCurrentDrawingAppearance { result = body() }
+        return result!
     }
 
     private static func chromeColor(_ token: KeyPath<Palette, NSColor> & Sendable) -> NSColor {
