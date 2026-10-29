@@ -31,3 +31,11 @@ jobs:
         run: |
           xcodebuild -project app/ZephInk.xcodeproj -scheme ZephInk -configuration Debug \
             -destination 'platform=macOS' -derivedDataPath app/build test
+      # If the app crashes while testing, print the crash report (which line, which thread).
+      - name: Show crash reports
+        if: failure()
+        run: |
+          for report in $(ls -t ~/Library/Logs/DiagnosticReports/*.ips 2>/dev/null | head -2); do
+            echo "=== $report"
+            python3 -c 'import json,sys; t=open(sys.argv[1]).read(); b=json.loads(t[t.index(chr(10))+1:]); print(b.get("exception"), b.get("termination",{}).get("indicator")); th=b["threads"][b.get("faultingThread",0)]; [print(" ", f.get("symbol","?")[:160], f.get("sourceFile",""), f.get("sourceLine","")) for f in th["frames"][:30]]' "$report" || head -c 4000 "$report"
+          done
