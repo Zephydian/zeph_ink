@@ -52,25 +52,6 @@ extension ZephTextView {
                                             analysis: editor.analysis, lineBreak: editor.lineBreak))
     }
 
-    // MARK: Text size
-
-    /// Sets the selection's (or the cursor's line's) text size; the default size takes its own size away.
-    func setTextSize(_ size: CGFloat) {
-        guard let editor else { return }
-        apply(MarkdownCommands.setTextSize(size, defaultSize: Preferences.textSize, text: string as NSString,
-                                           selection: selectedRange(), analysis: editor.analysis))
-    }
-
-    /// Format → Bigger Text and Smaller Text: one size up or down, for the selection.
-    @objc func makeTextBigger(_ sender: Any?) { stepTextSize(bigger: true) }
-    @objc func makeTextSmaller(_ sender: Any?) { stepTextSize(bigger: false) }
-
-    private func stepTextSize(bigger: Bool) {
-        guard let editor else { return }
-        let current = editor.formatting.textSize ?? Preferences.textSize
-        setTextSize(Preferences.textSize(after: current, bigger: bigger))
-    }
-
     // MARK: Lists and blocks
 
     @objc func toggleBulletedList(_ sender: Any?) { toggleList(.bulleted) }
@@ -208,7 +189,6 @@ extension ZephTextView {
         #selector(toggleBulletedList(_:)), #selector(toggleNumberedList(_:)), #selector(toggleChecklist(_:)),
         #selector(insertDivider(_:)), #selector(insertImage(_:)), #selector(editLink(_:)),
         #selector(alignLeft(_:)), #selector(alignCenter(_:)), #selector(alignRight(_:)),
-        #selector(makeTextBigger(_:)), #selector(makeTextSmaller(_:)),
     ]
 }
 

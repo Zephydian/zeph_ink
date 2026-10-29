@@ -114,9 +114,12 @@ nonisolated enum Theme {
 
     // MARK: Type
 
-    /// The page's body text size (Format → Text Size, 12 points by default). Everything else on the
-    /// page is sized from it. Zoom scales the whole page on top of this.
+    /// The body text size (the toolbar's size box, 12 points by default). Body text, lists, quotes and
+    /// code are sized from it; headings aren't. Zoom scales the whole page on top of this.
     static var bodySize: CGFloat { Preferences.textSize }
+    /// What heading sizes are worked out from: fixed, so titles and headings stay the same size when
+    /// the body text size changes.
+    static let headingBase: CGFloat = 12
     /// Line height as a multiple of the font size.
     static let bodyLineHeight: CGFloat = 1.68
     /// Source view and code: the size and line height of JetBrains Mono.

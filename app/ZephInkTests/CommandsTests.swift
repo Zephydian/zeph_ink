@@ -229,25 +229,4 @@ struct CommandsTests {
         #expect(run("<div align=\"center\">\n\nHello\n|\n\n</div>", leave) == "<div align=\"center\">\n\nHello\n\n</div>\n\n|")
         #expect(run("<div align=\"center\">\n\nHel|lo\n\n</div>", leave) == "<div align=\"center\">\n\nHel|lo\n\n</div>")
     }
-
-    // MARK: Text size
-
-    private func size(_ points: CGFloat?) -> (NSString, NSRange, MarkdownAnalysis) -> MarkdownCommands.Result {
-        { MarkdownCommands.setTextSize(points, defaultSize: 12, text: $0, selection: $1, analysis: $2) }
-    }
-
-    @Test func sizeWrapsTheSelectionOrTheLine() {
-        #expect(run("Some [big] words", size(18)) == "Some <span style=\"font-size:18pt\">[big]</span> words")
-        #expect(run("- A li|ne", size(16)) == "- <span style=\"font-size:16pt\">A li|ne</span>")
-        #expect(run("plain|", size(12)) == "plain|")
-    }
-
-    @Test func sizeChangesOrComesOff() {
-        let sized = "a <span style=\"font-size:18pt\">bi|g</span> b"
-        #expect(run(sized, size(24)) == "a <span style=\"font-size:24pt\">bi|g</span> b")
-        #expect(run(sized, size(12)) == "a bi|g b")
-        let text = sized.replacingOccurrences(of: "|", with: "") as NSString
-        let found = MarkdownCommands.sizedText(at: NSRange(location: 33, length: 0), in: text, analysis: MarkdownAnalysis(text as String))
-        #expect(found?.size == 18)
-    }
 }

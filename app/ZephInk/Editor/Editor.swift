@@ -209,6 +209,12 @@ final class Editor: NSObject {
         NotificationCenter.default.addObserver(self, selector: #selector(preferencesDidChange),
                                                name: UserDefaults.didChangeNotification, object: nil)
         appliedLook = Look.current
+        if let undo = document.undoManager {
+            for name: Notification.Name in [.NSUndoManagerCheckpoint, .NSUndoManagerDidUndoChange,
+                         .NSUndoManagerDidRedoChange, .NSUndoManagerDidCloseUndoGroup] {
+                NotificationCenter.default.addObserver(self, selector: #selector(undoHistoryDidChange(_:)), name: name, object: undo)
+            }
+        }
         stats.count(storage.string)
         stats.goal = WordGoals.goal(for: document.fileURL)
         restyleAll()
@@ -392,6 +398,17 @@ final class Editor: NSObject {
         guard abs(textView.frame.width - width) > 0.5 else { return }
         textView.setFrameSize(NSSize(width: width, height: textView.frame.height))
         textView.visibleHeightDidChange()
+    }
+
+    /// The document's undo history changed: the toolbar's undo and redo buttons follow.
+    @objc private func undoHistoryDidChange(_ notification: Notification) {
+        guard let undo = notification.object as? UndoManager else { return }
+        // Checkpoints come in the middle of changes: read the result once they're done.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if formatting.canUndo != undo.canUndo { formatting.canUndo = undo.canUndo }
+            if formatting.canRedo != undo.canRedo { formatting.canRedo = undo.canRedo }
+        }
     }
 
     // MARK: - Zoom

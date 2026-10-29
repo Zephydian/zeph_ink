@@ -47,7 +47,7 @@ private struct SettingsView: View {
                 }
             }
             Section("Page") {
-                Picker("Default text size", selection: $textSize) {
+                Picker("Body text size", selection: $textSize) {
                     ForEach(Preferences.textSizes, id: \.self) { size in
                         Text(size.formatted() + " pt").tag(Double(size))
                     }

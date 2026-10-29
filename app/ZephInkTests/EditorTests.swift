@@ -44,7 +44,7 @@ struct EditorTests {
         let bold = text.range(of: "bold").location
         #expect(font(at: hash, in: document)?.pointSize == Fonts.hidden.pointSize)
         #expect(font(at: stars, in: document)?.pointSize == Fonts.hidden.pointSize)
-        #expect(font(at: bold, in: document)?.pointSize == (Theme.bodySize * 1.42))
+        #expect(font(at: bold, in: document)?.pointSize == (Theme.headingBase * 1.42))
 
         // Moving onto the heading's line shows its symbols, faded.
         editor.textView.setSelectedRange(NSRange(location: bold, length: 0))
@@ -80,6 +80,17 @@ struct EditorTests {
         #expect(!document.storage.string.contains("<div"))
     }
 
+    @Test func bodyTextFollowsTheSizeAndHeadingsDont() throws {
+        let previous = UserDefaults.standard.object(forKey: Preferences.Key.textSize)
+        defer { UserDefaults.standard.set(previous, forKey: Preferences.Key.textSize) }
+        UserDefaults.standard.set(18.0, forKey: Preferences.Key.textSize)
+        let (document, editor) = try editor("# Title\n\nBody words\n")
+        editor.textView.setSelectedRange(NSRange(location: (document.storage.string as NSString).length, length: 0))
+        let text = document.storage.string as NSString
+        #expect(font(at: text.range(of: "Body").location, in: document)?.pointSize == 18)
+        #expect(font(at: text.range(of: "Title").location, in: document)?.pointSize == Theme.headingBase * 2)
+    }
+
     @Test func fadedModeAlwaysShowsSymbols() throws {
         let previous = MarkdownSymbols.current
         defer { MarkdownSymbols.current = previous }
@@ -107,7 +118,7 @@ struct EditorTests {
         editor.textView.setSelectedRange(NSRange(location: end, length: 0))
         editor.textView.insertText("## New heading", replacementRange: editor.textView.selectedRange())
         let heading = (document.storage.string as NSString).range(of: "New").location
-        #expect(font(at: heading, in: document)?.pointSize == (Theme.bodySize * 1.42))
+        #expect(font(at: heading, in: document)?.pointSize == (Theme.headingBase * 1.42))
     }
 
     // MARK: Lists

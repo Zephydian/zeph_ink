@@ -168,6 +168,15 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         workspace.focusPane(offset: -1)
     }
 
+    /// Format → Bigger Text and Smaller Text: the body text size, one step at a time.
+    @objc func makeTextBigger(_ sender: Any?) {
+        BodyTextSize.change(to: Preferences.textSize(after: Preferences.textSize, bigger: true), for: workspace.selectedTab?.editor, in: window)
+    }
+
+    @objc func makeTextSmaller(_ sender: Any?) {
+        BodyTextSize.change(to: Preferences.textSize(after: Preferences.textSize, bigger: false), for: workspace.selectedTab?.editor, in: window)
+    }
+
     /// View → Fit Page Width: zooms so the page (with a little desk around it) fills the focused pane.
     @objc func zoomToFitPage(_ sender: Any?) {
         guard let editor = workspace.selectedTab?.editor else { return }
