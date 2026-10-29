@@ -12,8 +12,6 @@ struct StatusBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZoomControl()
-            Rectangle().fill(Color(nsColor: Theme.chromeLine)).frame(width: 1, height: 14)
             Button { isEditingGoal = true } label: {
                 HStack(spacing: 6) {
                     if let goal = stats.goal {
@@ -42,6 +40,9 @@ struct StatusBar: View {
             .accessibilityElement(children: .combine)
 
             Spacer(minLength: 8)
+
+            ZoomControl()
+            Rectangle().fill(Color(nsColor: Theme.chromeLine)).frame(width: 1, height: 14)
 
             Button {
                 NSApp.sendAction(#selector(AppDelegate.showSettings(_:)), to: nil, from: nil)
@@ -75,13 +76,16 @@ struct StatusBar: View {
         return "\(total) · \(reading)"
     }
 
+    /// A saved file saves itself a moment after typing pauses: "Saving…" until it has, then "Saved".
+    /// An untitled document is kept safe too, but only becomes a file when it's saved somewhere.
     private var saveText: String {
-        if document.isEdited { return "Edited" }
-        return document.fileURL == nil ? "Not saved yet" : "Saved"
+        if document.fileURL == nil { return "Not saved yet" }
+        return document.isEdited ? "Saving…" : "Saved"
     }
 
     private var saveColor: Color {
-        document.isEdited || document.fileURL == nil ? Color(nsColor: .systemOrange) : Color(nsColor: .systemGreen)
+        document.fileURL == nil ? Color(nsColor: .systemOrange)
+            : document.isEdited ? Color(nsColor: Theme.chromeInkSecondary) : Color(nsColor: .systemGreen)
     }
 }
 

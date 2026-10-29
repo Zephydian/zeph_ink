@@ -283,6 +283,16 @@ final class ZephTextView: NSTextView {
         }
     }
 
+    /// Shift-Return sends the same command as Return (insertNewline), so it's caught as a key here.
+    override func keyDown(with event: NSEvent) {
+        let isReturn = event.keyCode == 36 || event.keyCode == 76   // Return, or Enter on the keypad
+        if isReturn, event.modifierFlags.contains(.shift), !hasMarkedText() {
+            insertLineBreak(nil)
+            return
+        }
+        super.keyDown(with: event)
+    }
+
     /// Shift-Return: a new line in the same paragraph, with no space before it. (NSTextView would insert
     /// a Unicode line separator, which markdown doesn't know.)
     override func insertLineBreak(_ sender: Any?) {

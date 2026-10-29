@@ -213,6 +213,22 @@ struct EditorFileTests {
         #expect(document.storage.string == "one\r\ntwo\r\n\r\n\r\n")
     }
 
+    /// A Return key press, made in memory and handed straight to the text view (never posted to the system).
+    private func returnKey(shift: Bool) -> NSEvent? {
+        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: shift ? [.shift] : [], timestamp: 0, windowNumber: 0,
+                         context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)
+    }
+
+    @Test func shiftReturnStartsALineAndReturnAParagraph() throws {
+        let (document, editor) = try editor("First")
+        editor.textView.setSelectedRange(NSRange(location: 5, length: 0))
+        editor.textView.keyDown(with: try #require(returnKey(shift: true)))
+        #expect(document.storage.string == "First\n")
+        editor.textView.insertText("Second", replacementRange: editor.textView.selectedRange())
+        editor.textView.insertNewline(nil)
+        #expect(document.storage.string == "First\nSecond\n\n")
+    }
+
     @Test func plainTextFilesAreMonospacedWithoutMarkdown() throws {
         let (document, editor) = try editor("# not a heading\n- not a list", type: MarkdownDocument.plainTextType)
         #expect(document.isPlainText)

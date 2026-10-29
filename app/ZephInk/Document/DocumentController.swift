@@ -6,6 +6,18 @@ import AppKit
 ///
 /// Closing a tab or a window still asks about unsaved untitled documents, like any Mac app.
 final class DocumentController: NSDocumentController {
+    /// Saves edits about two seconds after typing pauses (macOS would wait longer), so the status bar's
+    /// "Saving…" turns to "Saved" soon. One small file write per pause.
+    override init() {
+        super.init()
+        autosavingDelay = 2
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
     /// New documents are markdown, or plain text if Settings says so.
     override var defaultType: String? {
         Preferences.defaultType == .plainText ? MarkdownDocument.plainTextType : MarkdownDocument.markdownType

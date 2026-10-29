@@ -134,7 +134,7 @@ Every formatting action only inserts or removes markdown characters:
 - after each word (a space or punctuation), and after a pause of 1.5 seconds
 - around every paste, line break and formatting change (`insertAsOneStep`, `replace`, `apply`)
 
-**Return and Shift-Return.** Return on a line of text (body or heading, outside quotes) inserts two line breaks: a blank line and the new paragraph, which is how markdown separates paragraphs and spaces them apart. In lists, code, tables, front matter and on empty lines it inserts one. Shift-Return (`insertLineBreak`) always inserts one, so the next line stays in the same paragraph.
+**Return and Shift-Return.** Return on a line of text (body or heading, outside quotes) inserts two line breaks: a blank line and the new paragraph, which is how markdown separates paragraphs and spaces them apart. In lists, code, tables, front matter and on empty lines it inserts one. Shift-Return always inserts one, so the next line stays in the same paragraph. AppKit sends Return's command (`insertNewline`) for Shift-Return too, so `ZephTextView.keyDown` catches the key and calls `insertLineBreak`.
 
 **Links.** ⌘K opens a popover (`LinkEditor`) to add a link, or to change the one the cursor is in. ⌘-click opens a link with a scheme in its app.
 
@@ -159,6 +159,7 @@ Every formatting action only inserts or removes markdown characters:
 
 - Words are counted the way macOS splits text into words, so markdown symbols and link addresses don't count. The count runs a quarter second after typing pauses, and again for the selection.
 - Word-count goals are kept per file path in the defaults (`WordGoals`), never in the file.
+- Saved files save themselves: `DocumentController` sets `autosavingDelay` to 2 seconds, and the status bar shows "Saving…" while the document has unsaved edits, then "Saved".
 
 ## Front matter, outline, search and Quick Open
 

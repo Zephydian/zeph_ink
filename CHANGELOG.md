@@ -29,7 +29,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Align lines left, center or right (⌘{ ⌘| ⌘}), each line on its own. Markdown has no alignment, so center and right are saved as `<div align="center">` around the lines, which GitHub and many apps show centered.
 - Pressing Return inside bold, italic or other styles closes them, so the new line starts plain.
 - Pressing Return on an empty line at the end of centered or right-aligned text steps out of it, so the next line starts on the left.
-- A status bar: words and reading time (or the selection's words), characters on hover, and whether the document is saved.
+- A status bar: words and reading time (or the selection's words), characters on hover, and the save state: Saving… while you type, then Saved (files save themselves about two seconds after you pause).
 - Word-count goals: click the word count to set one, and a small ring fills as you write.
 - Focus Mode (View, ⌘⇧F) fades everything but the paragraph you're writing and hides the toolbar. Typewriter Mode keeps the line you're typing in the middle of the window. Synced Scrolling makes panes side by side scroll together.
 - Page styles (Settings, or View → Page Style): Continuous (one page that grows), Paper (Letter or A4 pages with page breaks, like a printed document), Square, or Custom Size in inches or centimeters.
@@ -40,7 +40,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Undo and redo in the toolbar grey out when there's nothing to undo or redo.
 - Undo goes back in sensible steps, like a word processor: a word or a burst of typing at a time, and each paste, Return and formatting change on its own.
 - Return starts a new paragraph, with a blank line before it so paragraphs are spaced apart. Shift-Return starts a new line in the same paragraph.
-- Zoom, like Word's: a zoom control at the bottom left (−, a slider, +, and a menu of sizes with Fit Page Width), View → Zoom In (⌘+), Zoom Out (⌘−) and Actual Size (⌥⌘0), or pinch on a trackpad. Pages no longer look small on big displays.
+- Zoom, like Word's: a zoom control at the bottom right (−, a slider, +, and a menu of sizes with Fit Page Width), View → Zoom In (⌘+), Zoom Out (⌘−) and Actual Size (⌥⌘0), or pinch on a trackpad. Pages no longer look small on big displays.
 - Increase Contrast makes faded markdown symbols darker, and Reduce Motion turns off animations.
 - Front matter (a YAML block at the top of a file) shows as a tidy "Document info" card; click its header to fold it.
 - View → Show Outline (⌥⌘O): the document's headings in a sidebar. Click one to jump there.
