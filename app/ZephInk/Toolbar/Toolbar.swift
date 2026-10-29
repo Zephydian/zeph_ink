@@ -25,6 +25,7 @@ struct Toolbar: View {
                     plainButton("arrow.uturn.forward", "Redo", "⌘⇧Z") { $0.undoManager?.redo() }
                     Separator()
                     StyleMenuButton(editor: editor, isOff: isOff, run: run)
+                    TextSizeMenu()
                     Separator()
                     button("text.alignleft", .symbol, "Align left", "⌘{", "the normal alignment", on: state.alignment == .left) { $0.alignLeft(nil) }
                     button("text.aligncenter", .symbol, "Center", "⌘|", "<div align=\"center\"> around the paragraph",
@@ -164,6 +165,41 @@ private struct StyleMenuButton: View {
             .padding(6)
             .frame(width: 240)
         }
+    }
+}
+
+/// The text size, like Word's font size box: every document's page text, in points.
+private struct TextSizeMenu: View {
+    @AppStorage(Preferences.Key.textSize) private var size = 12.0
+
+    var body: some View {
+        Menu {
+            ForEach(Preferences.textSizes, id: \.self) { step in
+                Button {
+                    Preferences.setTextSize(step)
+                } label: {
+                    if abs(Double(step) - size) < 0.01 { Label(step.formatted(), systemImage: "checkmark") } else { Text(step.formatted()) }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(CGFloat(size).formatted()).font(.system(size: 13).monospacedDigit())
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(Color(nsColor: Theme.chromeInkSecondary))
+            }
+            .padding(.horizontal, 8)
+            .frame(width: 58, height: 30)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: Theme.chromeSurface)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(nsColor: Theme.chromeLine)))
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .foregroundStyle(Color(nsColor: Theme.chromeInk))
+        .padding(.leading, 4)
+        .help("Text size, in points — Format → Bigger Text / Smaller Text")
+        .accessibilityLabel("Text size, \(CGFloat(size).formatted()) points")
     }
 }
 

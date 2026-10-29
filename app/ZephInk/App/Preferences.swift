@@ -18,6 +18,7 @@ nonisolated enum Preferences {
         static let syncedScrolling = "syncedScrolling"
         static let whitePage = "whitePage"
         static let zoom = "zoom"
+        static let textSize = "textSize"
     }
 
     /// How the page looks: one page that grows, or separate pages with breaks between them.
@@ -149,6 +150,24 @@ nonisolated enum Preferences {
     static var zoom: CGFloat {
         let zoom = UserDefaults.standard.double(forKey: Key.zoom)
         return zoom > 0 ? min(max(zoom, minZoom), maxZoom) : 1
+    }
+
+    /// The page's text size in points, like Word's font size (12 by default). Markdown can't store
+    /// sizes, so it's one setting for every document; headings, code and the page width follow it.
+    static var textSize: CGFloat {
+        let size = UserDefaults.standard.double(forKey: Key.textSize)
+        return size > 0 ? min(max(size, textSizes.first!), textSizes.last!) : 12
+    }
+
+    static let textSizes: [CGFloat] = [8, 9, 10, 10.5, 11, 12, 13, 14, 16, 18, 20, 24, 28, 36]
+
+    static func setTextSize(_ size: CGFloat) {
+        UserDefaults.standard.set(Double(min(max(size, textSizes.first!), textSizes.last!)), forKey: Key.textSize)
+    }
+
+    /// The next size up or down the list, like Word's Grow Font and Shrink Font.
+    static func textSize(after size: CGFloat, bigger: Bool) -> CGFloat {
+        bigger ? textSizes.first { $0 > size + 0.01 } ?? textSizes.last! : textSizes.last { $0 < size - 0.01 } ?? textSizes.first!
     }
 
     static let minZoom: CGFloat = 0.5

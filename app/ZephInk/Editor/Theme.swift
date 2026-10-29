@@ -114,21 +114,22 @@ nonisolated enum Theme {
 
     // MARK: Type
 
-    /// The page's body text size. Everything else on the page is sized from it. (Zoom scales the whole
-    /// page, text included.)
-    static let bodySize: CGFloat = 17
+    /// The page's body text size (Format → Text Size, 12 points by default). Everything else on the
+    /// page is sized from it. Zoom scales the whole page on top of this.
+    static var bodySize: CGFloat { Preferences.textSize }
     /// Line height as a multiple of the font size.
     static let bodyLineHeight: CGFloat = 1.68
     /// Source view and code: the size and line height of JetBrains Mono.
-    static let sourceSize: CGFloat = 14
+    static var sourceSize: CGFloat { (bodySize * 0.85 * 2).rounded() / 2 }
     static let sourceLineHeight: CGFloat = 1.75
 
     // MARK: Spacing
 
     /// Leaves room for the window's close, minimize and zoom buttons before the first tab.
     static let trafficLightsWidth: CGFloat = 78
-    /// The page's widest size, and the desk around it.
-    static let pageMaxWidth: CGFloat = 720
+    /// The Continuous page's width: it grows with the text size, so lines stay a comfortable length
+    /// (612 points at 12-point text, the width of a Letter page).
+    static var pageMaxWidth: CGFloat { (bodySize * 51).rounded() }
     static let deskMargin = NSSize(width: 28, height: 36)
     /// Space between the page's edges and its text: the Margins setting sets the sides.
     static var pagePadding: NSSize { NSSize(width: Preferences.margins.padding, height: 64) }

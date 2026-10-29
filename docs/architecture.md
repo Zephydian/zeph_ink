@@ -180,6 +180,10 @@ These are switches in the defaults, toggled from the View menu, and each editor 
 
 Increase Contrast swaps faded symbols for the secondary ink.
 
+## Text size
+
+`Preferences.textSize` (12 points by default) is the body text size, like Word's font size. Markdown can't store sizes, so it's one setting for every document. `Theme.bodySize` reads it, and everything on the page is sized from that: headings, code (`sourceSize`), line heights, list indents and checkboxes. The Continuous page is 51 times the text size wide (612 points at 12 pt, a Letter page's width), so lines stay a comfortable length. Paper, Square and Custom pages keep their real sizes. Zoom magnifies on top of the text size.
+
 ## Zoom
 
 Zoom is the scroll view's magnification (`allowsMagnification`), from 50% to 300%. One setting (`Preferences.zoom`) applies to every editor: the status bar's control, View → Zoom In and Zoom Out, and pinches (written back when the pinch ends) all set it. Magnifying changes the clip view's bounds, not its frame, so the editor keeps the text view as wide as the clip view's bounds. The page is then laid out in page points for what's shown, and stays centered. Fit Page Width picks the zoom at which the page and its desk fill the focused pane.

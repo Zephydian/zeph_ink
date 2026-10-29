@@ -346,12 +346,13 @@ final class Editor: NSObject {
         var theme: Preferences.Theme
         var whitePage: Bool
         var zoom: CGFloat
+        var textSize: CGFloat
         var contrast: Bool
 
         static var current: Look {
             Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current,
                  page: PageGeometry.current(viewWidth: 1000), focus: Preferences.focusMode, typewriter: Preferences.typewriterMode,
-                 theme: Preferences.theme, whitePage: Preferences.whitePage, zoom: Preferences.zoom,
+                 theme: Preferences.theme, whitePage: Preferences.whitePage, zoom: Preferences.zoom, textSize: Preferences.textSize,
                  contrast: Preferences.increaseContrast)
         }
     }
@@ -364,12 +365,12 @@ final class Editor: NSObject {
         guard look != appliedLook else { return }
         let old = appliedLook
         appliedLook = look
-        if look.margins != old?.margins || look.page != old?.page { textView.pageMetricsDidChange() }
+        if look.margins != old?.margins || look.page != old?.page || look.textSize != old?.textSize { textView.pageMetricsDidChange() }
         if look.focus != old?.focus || look.accent != old?.accent { focusedLines = nil; updateFocus() }
         if look.zoom != old?.zoom { applyZoom() }
         if look.typewriter != old?.typewriter { updateTypewriterSpace(); centerCursorIfTypewriter() }
         if look.accent != old?.accent || look.symbols != old?.symbols || look.theme != old?.theme || look.whitePage != old?.whitePage
-            || look.contrast != old?.contrast {
+            || look.contrast != old?.contrast || look.textSize != old?.textSize {
             textView.insertionPointColor = Theme.pageAccent
             textView.selectedTextAttributes = [.backgroundColor: Theme.pageAccent.withAlphaComponent(0.2)]
             // Restyling sets every color again, which makes TextKit draw the text afresh in the new theme.

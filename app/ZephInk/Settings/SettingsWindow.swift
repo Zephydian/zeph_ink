@@ -24,6 +24,7 @@ final class SettingsWindowController: NSWindowController {
 private struct SettingsView: View {
     @AppStorage(Preferences.Key.theme) private var theme = Preferences.Theme.system.rawValue
     @AppStorage(Preferences.Key.whitePage) private var whitePage = false
+    @AppStorage(Preferences.Key.textSize) private var textSize = 12.0
     @AppStorage(Preferences.Key.accent) private var accent = Preferences.Accent.system.rawValue
     @AppStorage(Preferences.Key.margins) private var margins = Preferences.Margins.normal.rawValue
     @AppStorage(MarkdownSymbols.key) private var symbols = MarkdownSymbols.clean.rawValue
@@ -46,6 +47,11 @@ private struct SettingsView: View {
                 }
             }
             Section("Page") {
+                Picker("Text size", selection: $textSize) {
+                    ForEach(Preferences.textSizes, id: \.self) { size in
+                        Text(size.formatted() + " pt").tag(Double(size))
+                    }
+                }
                 Picker("Page style", selection: $pageStyle) {
                     ForEach(Preferences.PageStyle.allCases) { Text($0.title).tag($0.rawValue) }
                 }
