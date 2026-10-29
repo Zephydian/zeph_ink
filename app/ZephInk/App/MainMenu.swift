@@ -14,6 +14,7 @@ enum MainMenu {
         menu.addItem(submenu(window))
         NSApp.windowsMenu = window
         let help = NSMenu(title: "Help")
+        help.addItem(item("Markdown Cheat Sheet", #selector(WorkspaceWindowController.showCheatSheet(_:)), "?"))
         menu.addItem(submenu(help))
         NSApp.helpMenu = help
         return menu

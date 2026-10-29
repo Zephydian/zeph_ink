@@ -21,7 +21,9 @@ extension ZephTextView {
 
     private func toggle(_ inline: MarkdownCommands.Inline) {
         guard let editor else { return }
+        let wasOn = editor.formatting.inline.contains(inline)
         apply(MarkdownCommands.toggle(inline, text: string as NSString, selection: selectedRange(), analysis: editor.analysis))
+        if !wasOn { offerTip(Tip(inline)) }
     }
 
     // MARK: Paragraphs
@@ -36,8 +38,10 @@ extension ZephTextView {
 
     func setParagraph(_ style: MarkdownCommands.Paragraph) {
         guard let editor else { return }
+        let wasOn = editor.formatting.paragraph == style
         apply(MarkdownCommands.setParagraph(style, text: string as NSString, selection: selectedRange(),
                                             analysis: editor.analysis, lineBreak: editor.lineBreak))
+        if !wasOn { offerTip(Tip(style)) }
     }
 
     // MARK: Alignment (the standard Format menu actions, writing markdown instead of attributes)
@@ -59,12 +63,15 @@ extension ZephTextView {
     @objc func toggleChecklist(_ sender: Any?) { toggleList(.checklist) }
 
     private func toggleList(_ kind: MarkdownCommands.ListKind) {
+        let wasOn = editor?.formatting.list == kind
         apply(MarkdownCommands.toggleList(kind, text: string as NSString, selection: selectedRange()))
+        if !wasOn { offerTip(Tip(kind)) }
     }
 
     @objc func insertDivider(_ sender: Any?) {
         guard let editor else { return }
         apply(MarkdownCommands.insertBlock("---", text: string as NSString, selection: selectedRange(), lineBreak: editor.lineBreak))
+        offerTip(.divider)
     }
 
     /// Format → Image…: picks images, copies them into `assets/` next to the document and links them.
@@ -85,6 +92,14 @@ extension ZephTextView {
         guard let editor, !blocks.isEmpty else { return }
         let joined = blocks.joined(separator: editor.lineBreak + editor.lineBreak)
         apply(MarkdownCommands.insertBlock(joined, text: string as NSString, selection: selectedRange(), lineBreak: editor.lineBreak))
+        offerTip(.image)
+    }
+
+    /// Learning mode: after a style is applied with a button, menu or shortcut, the status bar shows
+    /// what to type for it.
+    func offerTip(_ tip: Tip?) {
+        guard let tip, let document = editor?.documentForImages, editor?.handlesMarkdownInput == true else { return }
+        Tips.shared.offer(tip, in: document)
     }
 
     // MARK: Links
@@ -104,6 +119,7 @@ extension ZephTextView {
             popover?.close()
             guard let self, let url else { return }
             self.apply(MarkdownCommands.setLink(text: linkText, url: url, replacing: range))
+            if existing == nil { self.offerTip(.link) }
         }
         popover.contentViewController = NSHostingController(rootView: editorView)
         popover.show(relativeTo: anchorRect(for: range), of: self, preferredEdge: .maxY)

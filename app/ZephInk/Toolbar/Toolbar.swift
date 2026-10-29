@@ -52,6 +52,16 @@ struct Toolbar: View {
                 }
             }
             Spacer(minLength: 12)
+            Button { controller.workspace.showsCheatSheet.toggle() } label: {
+                Image(systemName: "questionmark.circle").font(.system(size: 14))
+            }
+            .buttonStyle(ToolbarButtonStyle(isOn: controller.workspace.showsCheatSheet, isOff: false))
+            .help("Markdown cheat sheet — ⌘?")
+            .accessibilityLabel("Markdown cheat sheet")
+            .popover(isPresented: Binding(get: { controller.workspace.showsCheatSheet },
+                                          set: { controller.workspace.showsCheatSheet = $0 }), arrowEdge: .bottom) {
+                CheatSheet()
+            }
             if isOff {
                 Button("Convert to Markdown") { controller.convertToMarkdown(nil) }
                     .buttonStyle(ProminentButtonStyle())

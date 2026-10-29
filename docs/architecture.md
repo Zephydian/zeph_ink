@@ -207,6 +207,12 @@ Zoom is the scroll view's magnification (`allowsMagnification`), from 50% to 300
 
 `RichPaste` turns the clipboard's HTML (or RTF, through HTML) into markdown by walking the tidied HTML: headings, bold, italic, strikethrough (including Google Docs' styled spans), code, links, lists, quotes, code blocks and dividers. When it finds nothing markdown can keep (a code editor's colored spans), the plain text is pasted instead. ⌘⇧V always pastes plain text.
 
+## Learning mode
+
+- **Tips** (`Learning/Tips.swift`). Each formatting action in `ZephTextView+Formatting` checks whether its style was off before it ran; if it was (the style was turned on, not off), it offers that style's `Tip`. `Tips.shared` (`@Observable`) holds the tip on show and the document it's for, and the status bar of the window showing that document displays it for seven seconds, or until it's clicked. Each tip shows three times, counted in the defaults (`tipsShown`), and Settings → Writing → Markdown tips (`showsTips`) turns them off. A tip already on screen doesn't count again.
+- **Cheat sheet** (`Learning/CheatSheet.swift`). The toolbar's ? button shows it as a popover (`Workspace.showsCheatSheet`). Help → Markdown Cheat Sheet (⌘?) toggles that popover, or, when the toolbar is hidden (or in focus mode), shows it at the top of the page. A test checks its shortcuts against the Format menu.
+- The markdown in tips and the cheat sheet uses `Fonts.monoAsTyped`: JetBrains Mono with its code ligatures off, so `==` and `~~` look like what you type.
+
 ## PDF export, printing and Copy as Rich Text
 
 `PrintLayout` (`Export/`) lays a document out on paper. It copies the text into its own `NSTextStorage` and TextKit 2 layout, so the open editor is never touched, and styles it with `MarkdownStyler` in Clean mode with no lines revealed, so every symbol hides. Page size and margins come from `PageGeometry` for the Paper page style, so screen and paper agree.
