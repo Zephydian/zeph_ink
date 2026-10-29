@@ -108,8 +108,18 @@ struct LearningTests {
         let previous = UserDefaults.standard.object(forKey: WelcomeWindowController.hasBeenShownKey)
         defer { UserDefaults.standard.set(previous, forKey: WelcomeWindowController.hasBeenShownKey) }
         UserDefaults.standard.removeObject(forKey: WelcomeWindowController.hasBeenShownKey)
-        WelcomeWindowController.showIfFirstLaunch()
+        WelcomeWindowController.showAtLaunch()
         #expect(!UserDefaults.standard.bool(forKey: WelcomeWindowController.hasBeenShownKey))
+    }
+
+    @Test func theWelcomeShowsOnceThenAfterBigUpdatesWithNotes() {
+        let notes = ["1.1": ["Tables you can edit"]]
+        typealias W = WelcomeWindowController
+        #expect(W.showing(hasSeen: false, lastVersion: nil, current: "1.0", notes: notes) == .welcome)
+        #expect(W.showing(hasSeen: true, lastVersion: "1.0", current: "1.0", notes: notes) == nil)
+        #expect(W.showing(hasSeen: true, lastVersion: "1.0", current: "1.1", notes: notes) == .whatsNew(["Tables you can edit"]))
+        #expect(W.showing(hasSeen: true, lastVersion: "1.1", current: "1.2", notes: notes) == nil)   // no notes: nothing
+        #expect(W.showing(hasSeen: true, lastVersion: nil, current: "1.1", notes: notes) == nil)     // version not known yet
     }
 
     @Test func everyLessonExampleShowsItsStyle() {
@@ -119,6 +129,8 @@ struct LearningTests {
         #expect(kinds[2].lines.contains { $0.list?.task != nil })
         #expect(kinds[3].spans.contains { $0.style.contains(.link) })
         #expect(kinds[4].lines.contains { $0.quoteDepth > 0 })
+        #expect(kinds[5].lines.contains { $0.kind == .table })
+        #expect(Lesson.all.count == 6)
     }
 
     @Test func thePreviewHidesSymbolsAtAFixedSize() {

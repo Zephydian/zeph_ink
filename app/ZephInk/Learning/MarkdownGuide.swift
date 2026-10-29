@@ -52,6 +52,9 @@ struct Lesson: Identifiable, Hashable {
         Lesson(id: 5, title: "Quotes and code",
                explanation: "Start a line with `>` for a quote. Put backticks around `code` in a sentence, and three backticks on the lines before and after a block of code. `---` on a line of its own draws a divider.",
                example: "> The best way out is always through.\n\nRun `make build` first.\n\n```\nlet greeting = \"Hello\"\nprint(greeting)\n```\n\n---\n"),
+        Lesson(id: 6, title: "Tables and images",
+               explanation: "A table is rows of cells between `|` bars, with a line of `---` under the first row. Zeph#Ink shows tables in code type so the columns line up; other apps draw them as grids.\n\nAn image is `![description](file)`. Format → Image… or dropping a picture on the page writes it for you, and copies the picture into an `assets` folder next to the document. (The examples here have no pictures, so only the description shows.)",
+               example: "| Fruit  | Price |\n| ------ | ----- |\n| Apples | 2.50  |\n| Pears  | 3.00  |\n\n![The harbor at sunset](assets/harbor.jpg)\n"),
     ]
 }
 
@@ -88,6 +91,8 @@ struct MarkdownGuideView: View {
                 HStack {
                     Button("Reset Example") { texts[lessonID] = nil }
                         .disabled(texts[lessonID] == nil)
+                    Button("Try in a New Document") { MarkdownGuideView.openDocument(with: texts[lessonID] ?? lesson.example) }
+                        .help("Opens this example as a new document, to keep writing in Zeph#Ink itself.")
                     Spacer()
                     Button("Back") { lessonID -= 1 }
                         .disabled(lessonID == 1)
@@ -106,6 +111,15 @@ struct MarkdownGuideView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(minWidth: 680, idealWidth: 820, minHeight: 460, idealHeight: 540)
+    }
+
+    /// A new untitled document holding the example, in the frontmost workspace window. It counts as
+    /// changed, so it's kept like anything else you write.
+    static func openDocument(with text: String) {
+        guard let document = try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true) as? MarkdownDocument else { return }
+        document.storage.replaceCharacters(in: NSRange(location: 0, length: document.storage.length), with: text)
+        document.updateChangeCount(.changeDone)
+        document.showWindows()
     }
 
     private func box(_ title: String, @ViewBuilder content: () -> some View) -> some View {

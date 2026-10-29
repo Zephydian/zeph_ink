@@ -27,9 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         restoredSession = Session.load()?.restore() ?? false
     }
 
-    /// The first time Zeph#Ink opens, the welcome window, in front of the new document.
+    /// The first time Zeph#Ink opens (or after a big update), the welcome window, in front of the document.
     func applicationDidFinishLaunching(_ notification: Notification) {
-        DispatchQueue.main.async { WelcomeWindowController.showIfFirstLaunch() }
+        DispatchQueue.main.async { WelcomeWindowController.showAtLaunch() }
     }
 
     /// Help → Welcome to Zeph#Ink.
