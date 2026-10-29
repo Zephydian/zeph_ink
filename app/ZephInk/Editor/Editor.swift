@@ -169,7 +169,7 @@ final class Editor: NSObject {
         textView.allowsUndo = true
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
-        textView.isContinuousSpellCheckingEnabled = !isPlainText
+        textView.isContinuousSpellCheckingEnabled = !isPlainText && Preferences.checksSpelling
         // Markdown is plain text: smart quotes, dashes and replacements would change what the person typed.
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
@@ -356,12 +356,13 @@ final class Editor: NSObject {
         var zoom: CGFloat
         var textSize: CGFloat
         var contrast: Bool
+        var spelling: Bool
 
         static var current: Look {
             Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current,
                  page: PageGeometry.current(viewWidth: 1000), focus: Preferences.focusMode, typewriter: Preferences.typewriterMode,
                  theme: Preferences.theme, whitePage: Preferences.whitePage, zoom: Preferences.zoom, textSize: Preferences.textSize,
-                 contrast: Preferences.increaseContrast)
+                 contrast: Preferences.increaseContrast, spelling: Preferences.checksSpelling)
         }
     }
 
@@ -376,6 +377,7 @@ final class Editor: NSObject {
         if look.margins != old?.margins || look.page != old?.page || look.textSize != old?.textSize { textView.pageMetricsDidChange() }
         if look.focus != old?.focus || look.accent != old?.accent { focusedLines = nil; updateFocus() }
         if look.zoom != old?.zoom { applyZoom() }
+        if look.spelling != old?.spelling { textView.isContinuousSpellCheckingEnabled = !isPlainText && look.spelling }
         if look.typewriter != old?.typewriter { updateTypewriterSpace(); centerCursorIfTypewriter() }
         if look.accent != old?.accent || look.symbols != old?.symbols || look.theme != old?.theme || look.whitePage != old?.whitePage
             || look.contrast != old?.contrast || look.textSize != old?.textSize {
@@ -528,6 +530,31 @@ extension Editor: NSTextViewDelegate {
             let line = analysis.lines[analysis.lineIndex(at: selection.location)]
             if line.range.length == 0 { textView.typingAttributes = MarkdownStyler.typingAttributes(for: line, mode: mode) }
         }
+    }
+}
+
+// MARK: Spelling
+
+extension Editor {
+    /// macOS checked some text: keeps only the results (misspellings and autocorrections) for words of
+    /// writing, so code, addresses and markdown symbols are never underlined or changed.
+    func textView(_ view: NSTextView, didCheckTextIn range: NSRange, types checkingTypes: NSTextCheckingTypes,
+                  options: [NSSpellChecker.OptionKey: Any] = [:], results: [NSTextCheckingResult],
+                  orthography: NSOrthography, wordCount: Int) -> [NSTextCheckingResult] {
+        guard !isPlainText else { return results }
+        let text = storage.string as NSString
+        return results.filter { result in
+            switch result.resultType {
+            case .spelling, .correction, .grammar: Spelling.allows(result.range, in: text, analysis: analysis)
+            default: true
+            }
+        }
+    }
+
+    /// The last word on underlining: nothing outside writing is marked, however it was checked.
+    func textView(_ textView: NSTextView, shouldSetSpellingState value: Int, range affectedCharRange: NSRange) -> Int {
+        guard value != 0, !isPlainText else { return value }
+        return Spelling.allows(affectedCharRange, in: storage.string as NSString, analysis: analysis) ? value : 0
     }
 }
 

@@ -215,6 +215,14 @@ Zoom is the scroll view's magnification (`allowsMagnification`), from 50% to 300
 - **Markdown guide** (`Learning/MarkdownGuide.swift`). A window with the lessons in a sidebar. Each lesson's example is in two boxes: an editable plain text view on the left, and a `MarkdownPreview` on the right, which styles the text with `MarkdownStyler` in Clean mode with no lines revealed (and `PageLayoutFragment` for bullets and checkboxes), so it looks like the page. It styles inside `Theme.withBodySize(13)`, a per-thread override of the body text size, so the examples stay small whatever the setting. Try in a New Document opens an untitled document holding the example, marked as changed so it's kept.
 - The markdown in tips and the cheat sheet uses `Fonts.monoAsTyped`: JetBrains Mono with its code ligatures off, so `==` and `~~` look like what you type.
 
+## Spelling
+
+The text view's own spell checking (`NSSpellChecker`) does the work: red underlines, suggestions, Ignore and Learn Spelling in the right-click menu, the spelling panel. It doesn't know markdown, so `Spelling.allows` decides, for each word it flags, whether that's writing. It isn't when it's in a code block, inline code, front matter or an alignment tag line, touches a block symbol, list marker or inline symbol (`**`, `](address)`), or falls in a link or image address, a link definition, a bare web or email address, or an HTML tag.
+
+- The editor, as the text view's delegate, filters macOS's results before they're applied (`textView(_:didCheckTextIn:…)`), which covers autocorrection too, and vetoes any underline outside writing (`textView(_:shouldSetSpellingState:range:)`).
+- Edit → Spelling and Grammar → Check Document Now (⌘;) is `ZephTextView.checkSpelling`: it asks the checker for the next misspelled word and skips the ones `Spelling` rules out.
+- Check Spelling While Typing is one setting for every document (`checksSpelling`, on by default). `.txt` files aren't checked.
+
 ## PDF export, printing and Copy as Rich Text
 
 `PrintLayout` (`Export/`) lays a document out on paper. It copies the text into its own `NSTextStorage` and TextKit 2 layout, so the open editor is never touched, and styles it with `MarkdownStyler` in Clean mode with no lines revealed, so every symbol hides. Page size and margins come from `PageGeometry` for the Paper page style, so screen and paper agree.

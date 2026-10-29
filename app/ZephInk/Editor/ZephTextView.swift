@@ -369,6 +369,38 @@ final class ZephTextView: NSTextView {
         return true
     }
 
+    // MARK: - Spelling
+
+    /// Edit → Spelling and Grammar → Check Document Now (⌘;): selects the next misspelled word after
+    /// the selection, skipping code, addresses and markdown, like the underlines do.
+    override func checkSpelling(_ sender: Any?) {
+        guard let editor, editor.handlesMarkdownInput else { return super.checkSpelling(sender) }
+        let checker = NSSpellChecker.shared
+        let text = string as NSString
+        var start = NSMaxRange(selectedRange())
+        var seen = Set<Int>()
+        while true {
+            let found = checker.checkSpelling(of: string, startingAt: start, language: nil, wrap: true,
+                                              inSpellDocumentWithTag: spellCheckerDocumentTag, wordCount: nil)
+            guard found.location != NSNotFound, seen.insert(found.location).inserted else { break }
+            if Spelling.allows(found, in: text, analysis: editor.analysis) {
+                setSelectedRange(found)
+                scrollRangeToVisible(found)
+                showFindIndicator(for: found)
+                checker.updateSpellingPanel(withMisspelledWord: text.substring(with: found))
+                return
+            }
+            start = NSMaxRange(found)
+        }
+        // Nothing left to correct.
+        checker.updateSpellingPanel(withMisspelledWord: "")
+    }
+
+    /// Check Spelling While Typing applies to every document, and is remembered.
+    override func toggleContinuousSpellChecking(_ sender: Any?) {
+        UserDefaults.standard.set(!Preferences.checksSpelling, forKey: Preferences.Key.checksSpelling)
+    }
+
     // MARK: - Editing
 
     /// Changes text the way typing does: undoable, and the selection follows.
