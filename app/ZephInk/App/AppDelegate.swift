@@ -14,11 +14,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// asked to open joins them.
     func applicationWillFinishLaunching(_ notification: Notification) {
         followAccessibilitySettings()
-        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(followAccessibilitySettings),
-                                                          name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
         applyTheme()
-        NotificationCenter.default.addObserver(self, selector: #selector(applyTheme),
-                                               name: UserDefaults.didChangeNotification, object: nil)
+        // Settings can change on any thread (macOS and other frameworks change some of their own), so
+        // these always run on the main thread.
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+                                                          object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.followAccessibilitySettings() }
+        }
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applyTheme() }
+        }
         restoredSession = Session.load()?.restore() ?? false
     }
 

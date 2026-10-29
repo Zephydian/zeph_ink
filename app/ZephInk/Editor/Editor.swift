@@ -206,8 +206,10 @@ final class Editor: NSObject {
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(clipViewDidChangeBounds),
                                                name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
-        NotificationCenter.default.addObserver(self, selector: #selector(preferencesDidChange),
-                                               name: UserDefaults.didChangeNotification, object: nil)
+        // Settings can change on any thread: follow them on the main thread.
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.preferencesDidChange() }
+        }
         appliedLook = Look.current
         if let undo = document.undoManager {
             for name: Notification.Name in [.NSUndoManagerCheckpoint, .NSUndoManagerDidUndoChange,
