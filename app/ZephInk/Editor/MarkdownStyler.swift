@@ -37,6 +37,15 @@ nonisolated final class LineDecoration: NSObject {
     var isCollapsed = false
 
     static let accessPromptHeight: CGFloat = 44
+
+    override func copy() -> Any {
+        let copy = LineDecoration()
+        copy.quoteDepth = quoteDepth; copy.code = code; copy.isDivider = isDivider
+        copy.bullet = bullet; copy.task = task; copy.isChecked = isChecked
+        copy.image = image; copy.imageSize = imageSize; copy.imageNeedsAccess = imageNeedsAccess
+        copy.frontMatter = frontMatter; copy.frontMatterHeader = frontMatterHeader; copy.isCollapsed = isCollapsed
+        return copy
+    }
 }
 
 nonisolated extension NSAttributedString.Key {
@@ -53,6 +62,8 @@ enum MarkdownStyler {
     struct Images {
         var lookup: (String) -> ImageLoader.Result?
         var columnWidth: CGFloat
+        /// On paper, an image is never taller than a page holds.
+        var maxHeight: CGFloat = .greatestFiniteMagnitude
     }
 
     enum Mode: Equatable {
@@ -128,7 +139,7 @@ enum MarkdownStyler {
         var showsImage = false
         if let images, line.kind == .body, let path = imagePath(in: (storage.string as NSString).substring(with: line.range)),
            let result = images.lookup(path) {
-            showsImage = block.showImage(result, columnWidth: images.columnWidth)
+            showsImage = block.showImage(result, columnWidth: images.columnWidth, maxHeight: images.maxHeight)
         }
         storage.setAttributes(block.attributes, range: line.fullRange)
 
@@ -331,13 +342,13 @@ enum MarkdownStyler {
 
         /// Shows an image below the line: room for it after the line, and the drawing in the decoration.
         /// Returns whether there's something to show.
-        mutating func showImage(_ result: ImageLoader.Result, columnWidth: CGFloat) -> Bool {
+        mutating func showImage(_ result: ImageLoader.Result, columnWidth: CGFloat, maxHeight: CGFloat) -> Bool {
             let decoration = self.decoration ?? LineDecoration()
             let height: CGFloat
             switch result {
             case .image(let image):
                 let width = CGFloat(image.width), natural = CGFloat(image.height)
-                let scale = width > 0 ? min(1, max(columnWidth, 1) / width) : 1
+                let scale = width > 0 && natural > 0 ? min(1, max(columnWidth, 1) / width, max(maxHeight, 1) / natural) : 1
                 decoration.image = image
                 decoration.imageSize = CGSize(width: (width * scale).rounded(), height: (natural * scale).rounded())
                 height = decoration.imageSize.height

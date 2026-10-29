@@ -152,8 +152,17 @@ extension ZephTextView {
     // MARK: Menus
 
     /// The formatting actions, the state each shows in the menu, and when they're off: in `.txt` files.
+    /// Edit → Copy as Rich Text: the selection, formatted, for Mail, Pages or Docs.
+    @objc func copyAsRichText(_ sender: Any?) {
+        guard let editor, selectedRange().length > 0 else { return }
+        RichCopy.copy((string as NSString).substring(with: selectedRange()), folder: editor.documentFolder)
+    }
+
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard let action = menuItem.action else { return true }
+        if action == #selector(copyAsRichText(_:)) {
+            return editor?.isPlainText == false && selectedRange().length > 0
+        }
         guard let editor, Self.formattingActions.contains(action) else {
             return super.validateMenuItem(menuItem)
         }

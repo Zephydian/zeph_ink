@@ -31,6 +31,7 @@ private struct SettingsView: View {
     @AppStorage(Preferences.Key.defaultType) private var defaultType = Preferences.DocumentType.markdown.rawValue
     @AppStorage(Preferences.Key.pageStyle) private var pageStyle = Preferences.PageStyle.continuous.rawValue
     @AppStorage(Preferences.Key.paperSize) private var paperSize = Preferences.PaperSize.automatic.rawValue
+    @AppStorage(Preferences.Key.pageNumbers) private var pageNumbers = true
 
     var body: some View {
         Form {
@@ -73,6 +74,14 @@ private struct SettingsView: View {
                     ForEach(Preferences.Margins.allCases) { Text($0.title).tag($0.rawValue) }
                 }
                 .pickerStyle(.segmented)
+            }
+            Section("PDF") {
+                Picker("PDF page size", selection: $paperSize) {
+                    ForEach(Preferences.PaperSize.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                Toggle("Page numbers", isOn: $pageNumbers)
+                Text("File → Export as PDF uses this paper and the margins above, on a white page with markdown symbols hidden.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Writing") {
                 Picker("Markdown symbols", selection: $symbols) {

@@ -19,6 +19,7 @@ nonisolated enum Preferences {
         static let whitePage = "whitePage"
         static let zoom = "zoom"
         static let textSize = "textSize"
+        static let pageNumbers = "pdfPageNumbers"
     }
 
     /// How the page looks: one page that grows, or separate pages with breaks between them.
@@ -36,7 +37,7 @@ nonisolated enum Preferences {
         }
     }
 
-    /// The paper for the Paper page style (and, later, PDF export).
+    /// The paper for the Paper page style and for PDF export.
     enum PaperSize: String, CaseIterable, Identifiable {
         case automatic, letter, a4
         var id: String { rawValue }
@@ -184,6 +185,9 @@ nonisolated enum Preferences {
 
     /// Keeps the page white (with the light page's text colors) in Sepia, Dark and Midnight.
     static var whitePage: Bool { UserDefaults.standard.bool(forKey: Key.whitePage) }
+
+    /// Numbers at the foot of exported PDF pages (on unless turned off).
+    static var pageNumbers: Bool { UserDefaults.standard.object(forKey: Key.pageNumbers) as? Bool ?? true }
 
     /// Dims everything but the paragraph you're writing, and hides the toolbar.
     static var focusMode: Bool { UserDefaults.standard.bool(forKey: Key.focusMode) }

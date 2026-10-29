@@ -47,3 +47,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Edit → Find → Find in All Documents (⌥⇧⌘F): search every open document from the sidebar.
 - File → Quick Open (⌘⇧O): type part of a file's name to jump to an open document or a recent file.
 - Settings (⌘,): theme, accent color (the Mac's, Zephydian Ink, or a fixed color), margins (narrow, normal, wide; also under View → Margins), markdown symbols, and whether new documents are markdown or plain text.
+- File → Export as PDF… (⌘⇧E) saves the document as a PDF: a white page with every markdown symbol hidden, whatever the theme, zoom or focus mode. Headings never sit alone at the bottom of a page, and images and short code blocks aren't split. Page numbers (Settings → PDF), and the document's name as the PDF's title. `.txt` files export as plain monospaced text. Front matter is left out.
+- Settings → PDF: page size (Automatic, Letter or A4, shared with the Paper page style) and page numbers. Margins follow the Margins setting.
+- File → Page Setup… (⌘⇧P) and Print… (⌘P) print the same pages.
+- Edit → Copy as Rich Text (⌥⇧⌘C) copies the selection formatted, without markdown symbols, to paste into Mail, Pages or Google Docs. Images next to the document come along.

@@ -58,6 +58,10 @@ enum MainMenu {
         menu.addItem(item("Browse All Versions…", #selector(NSDocument.browseVersions(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Convert to Markdown", #selector(WorkspaceWindowController.convertToMarkdown(_:))))
+        menu.addItem(item("Export as PDF…", #selector(WorkspaceWindowController.exportAsPDF(_:)), "e", [.command, .shift]))
+        menu.addItem(.separator())
+        menu.addItem(item("Page Setup…", #selector(NSDocument.runPageLayout(_:)), "p", [.command, .shift]))
+        menu.addItem(item("Print…", #selector(NSDocument.printDocument(_:)), "p"))
         return menu
     }
 
@@ -68,6 +72,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item("Cut", #selector(NSText.cut(_:)), "x"))
         menu.addItem(item("Copy", #selector(NSText.copy(_:)), "c"))
+        menu.addItem(item("Copy as Rich Text", #selector(ZephTextView.copyAsRichText(_:)), "c", [.command, .option, .shift]))
         menu.addItem(item("Paste", #selector(NSText.paste(_:)), "v"))
         menu.addItem(item("Paste as Plain Text", #selector(NSTextView.pasteAsPlainText(_:)), "v", [.command, .shift]))
         menu.addItem(item("Delete", #selector(NSText.delete(_:))))

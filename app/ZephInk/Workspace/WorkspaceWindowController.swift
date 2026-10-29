@@ -233,6 +233,12 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         document.close()
     }
 
+    /// File → Export as PDF… (⌘⇧E): the selected tab's document.
+    @objc func exportAsPDF(_ sender: Any?) {
+        guard let document = workspace.selectedTab?.document, let window else { return }
+        PDFExport.run(document, in: window)
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let selected = workspace.selectedTab
         switch menuItem.action {
@@ -251,6 +257,8 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
             return true
         case #selector(convertToMarkdown(_:)):
             return selected?.document.isPlainText == true && selected?.document.fileURL != nil
+        case #selector(exportAsPDF(_:)):
+            return selected != nil
         default:
             return true
         }

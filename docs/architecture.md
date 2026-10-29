@@ -207,6 +207,19 @@ Zoom is the scroll view's magnification (`allowsMagnification`), from 50% to 300
 
 `RichPaste` turns the clipboard's HTML (or RTF, through HTML) into markdown by walking the tidied HTML: headings, bold, italic, strikethrough (including Google Docs' styled spans), code, links, lists, quotes, code blocks and dividers. When it finds nothing markdown can keep (a code editor's colored spans), the plain text is pasted instead. ⌘⇧V always pastes plain text.
 
+## PDF export, printing and Copy as Rich Text
+
+`PrintLayout` (`Export/`) lays a document out on paper. It copies the text into its own `NSTextStorage` and TextKit 2 layout, so the open editor is never touched, and styles it with `MarkdownStyler` in Clean mode with no lines revealed, so every symbol hides. Page size and margins come from `PageGeometry` for the Paper page style, so screen and paper agree.
+
+- **Always light.** `Theme.printing { }` marks the current thread as drawing paper: page colors resolve to the Light palette (as White Page does) and the drawing appearance is light. It's per thread, so editors drawing elsewhere keep their theme. Layout and drawing both happen inside it.
+- **No symbols in the PDF's text.** Hidden symbols are only drawn tiny and clear, which would still put `**` in the PDF's text layer. The layout's `NSTextContentStorageDelegate` hands TextKit each line without them, moving bullet and checkbox offsets to match. Lines that are nothing but symbols (an image, a code fence) keep them, because their look lives on those characters.
+- **Pagination.** The text is laid out as one long column, then `Pagination` cuts it into pages: whole blocks while they fit, otherwise a break between the lines of a paragraph (never leaving one line behind or carrying one over), or before the block. Breaking before a block takes the headings above it along. Images (scaled to fit a page) and code blocks up to a third of a page stay whole. Blank lines never start a page. Each page draws the layout fragments in its slice, clipped to it, then its number.
+- **Export as PDF** (`PDFExport`) asks where to save and draws the pages into a PDF context, titled with the document's name. It uses the paper from Settings → PDF (Automatic is Letter in the US and Canada, A4 elsewhere).
+- **Print** goes through `NSDocument`: `printOperation(withSettings:)` prints a `PrintView` that knows its page range, on the paper from Page Setup.
+- Front matter is left out. `.txt` files print as plain monospaced text.
+
+**Copy as Rich Text** (`RichCopy`) turns the selected markdown into HTML with swift-markdown's `HTMLFormatter`, adds highlights (`<mark>`), checkboxes as ☐ and ☑, and images next to the document as data, then puts HTML, RTF (converted from the HTML) and the plain words on the clipboard.
+
 Fonts are bundled (`Resources/Fonts`) and registered for the app at launch (`Fonts.register()`). Literata (the page) and JetBrains Mono (code and source view) are variable fonts: weights and Literata's optical size come from their axes. Small headings use SF in small capitals, so the text itself isn't changed.
 
 ## Pages
