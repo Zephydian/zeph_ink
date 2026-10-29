@@ -68,7 +68,8 @@ final class ZephTextView: NSTextView {
     /// The window got taller or shorter: a Continuous page reaches the bottom of it, and paged views
     /// stay tall enough for every page.
     func visibleHeightDidChange() {
-        guard let clip = enclosingScrollView?.contentSize.height else { return }
+        // In page points: at 50% zoom twice as much page shows as the window is tall.
+        guard let clip = enclosingScrollView?.contentView.bounds.height else { return }
         let height = geometry.isPaged ? max(geometry.viewHeight(pages: pageCount), clip) : clip
         guard minSize.height != height else { return }
         minSize = NSSize(width: 0, height: height)

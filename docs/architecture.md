@@ -178,7 +178,11 @@ These are switches in the defaults, toggled from the View menu, and each editor 
 - `pageAccent` is the accent resolved in light mode on a white page.
 - `NSApp.appearance` is light for Light and Sepia and dark for Dark and Midnight, so standard controls match.
 
-Increase Contrast swaps faded symbols for the secondary ink. View → Bigger Text and Smaller Text scale `Theme.bodySize` and `sourceSize`, and everything on the page is sized from those.
+Increase Contrast swaps faded symbols for the secondary ink.
+
+## Zoom
+
+Zoom is the scroll view's magnification (`allowsMagnification`), from 50% to 300%. One setting (`Preferences.zoom`) applies to every editor: the status bar's control, View → Zoom In and Zoom Out, and pinches (written back when the pinch ends) all set it. Magnifying changes the clip view's bounds, not its frame, so the editor keeps the text view as wide as the clip view's bounds. The page is then laid out in page points for what's shown, and stays centered. Fit Page Width picks the zoom at which the page and its desk fill the focused pane.
 
 ## Smart paste
 

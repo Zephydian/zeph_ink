@@ -35,7 +35,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Page styles (Settings, or View → Page Style): Continuous (one page that grows), Paper (Letter or A4 pages with page breaks, like a printed document), Square, or Custom Size in inches or centimeters.
 - Themes: Light, Sepia (warm tan), Dark (neutral charcoal) and Midnight (deep blue), or System to follow the Mac. White Page keeps the page white in the darker themes.
 - Pasting formatted text from a web page, Word, Google Docs or Pages turns it into markdown (headings, bold, italic, links, lists, quotes, code). Edit → Paste as Plain Text (⌘⇧V) pastes the words only.
-- View → Bigger Text (⌘+), Smaller Text (⌘−) and Actual Size. Increase Contrast makes faded markdown symbols darker, and Reduce Motion turns off animations.
+- Zoom, like Word's: a zoom control at the bottom left (−, a slider, +, and a menu of sizes with Fit Page Width), View → Zoom In (⌘+), Zoom Out (⌘−) and Actual Size (⌥⌘0), or pinch on a trackpad. Pages no longer look small on big displays.
+- Increase Contrast makes faded markdown symbols darker, and Reduce Motion turns off animations.
 - Front matter (a YAML block at the top of a file) shows as a tidy "Document info" card; click its header to fold it.
 - View → Show Outline (⌥⌘O): the document's headings in a sidebar. Click one to jump there.
 - Edit → Find → Find in All Documents (⌥⇧⌘F): search every open document from the sidebar.

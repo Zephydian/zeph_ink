@@ -30,15 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
     }
 
-    /// View → Bigger Text (⌘+), Smaller Text (⌘−) and Actual Size.
-    @objc func makeTextBigger(_ sender: Any?) { scaleText(by: 1.1) }
-    @objc func makeTextSmaller(_ sender: Any?) { scaleText(by: 1 / 1.1) }
-    @objc func makeTextActualSize(_ sender: Any?) { UserDefaults.standard.set(1.0, forKey: Preferences.Key.textScale) }
-
-    private func scaleText(by factor: CGFloat) {
-        let scale = min(max(Preferences.textScale * factor, 0.7), 2)
-        UserDefaults.standard.set((scale * 100).rounded() / 100, forKey: Preferences.Key.textScale)
-    }
+    /// View → Zoom In (⌘+), Zoom Out (⌘−) and Actual Size (⌥⌘0), in the steps the status bar's
+    /// zoom menu offers.
+    @objc func zoomIn(_ sender: Any?) { Preferences.setZoom(Zoom.step(from: Preferences.zoom, up: true)) }
+    @objc func zoomOut(_ sender: Any?) { Preferences.setZoom(Zoom.step(from: Preferences.zoom, up: false)) }
+    @objc func zoomToActualSize(_ sender: Any?) { Preferences.setZoom(1) }
 
     /// Light, dark, or following the Mac (Settings → Theme).
     @objc private func applyTheme() {

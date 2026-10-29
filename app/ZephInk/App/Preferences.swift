@@ -17,7 +17,7 @@ nonisolated enum Preferences {
         static let typewriterMode = "typewriterMode"
         static let syncedScrolling = "syncedScrolling"
         static let whitePage = "whitePage"
-        static let textScale = "textScale"
+        static let zoom = "zoom"
     }
 
     /// How the page looks: one page that grows, or separate pages with breaks between them.
@@ -145,10 +145,19 @@ nonisolated enum Preferences {
         UserDefaults.standard.string(forKey: key).flatMap(Value.init(rawValue:)) ?? fallback
     }
 
-    /// How big the page's text is, from View → Bigger Text and Smaller Text (1 is normal).
-    static var textScale: CGFloat {
-        let scale = UserDefaults.standard.double(forKey: Key.textScale)
-        return scale > 0 ? min(max(scale, 0.7), 2) : 1
+    /// How big the page shows: View → Zoom, the zoom control in the status bar, or a pinch (1 is 100%).
+    static var zoom: CGFloat {
+        let zoom = UserDefaults.standard.double(forKey: Key.zoom)
+        return zoom > 0 ? min(max(zoom, minZoom), maxZoom) : 1
+    }
+
+    static let minZoom: CGFloat = 0.5
+    static let maxZoom: CGFloat = 3
+
+    static func setZoom(_ zoom: CGFloat) {
+        let clamped = min(max(zoom, minZoom), maxZoom)
+        // Close to 100% snaps to it.
+        UserDefaults.standard.set(abs(clamped - 1) < 0.03 ? 1 : (clamped * 100).rounded() / 100, forKey: Key.zoom)
     }
 
     /// The Mac's Increase Contrast setting, kept here so colors drawn on TextKit's threads can read it.

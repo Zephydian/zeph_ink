@@ -114,12 +114,13 @@ nonisolated enum Theme {
 
     // MARK: Type
 
-    /// The page's body text size (scaled by View → Bigger Text). Everything else on the page is sized from it.
-    static var bodySize: CGFloat { 17 * Preferences.textScale }
+    /// The page's body text size. Everything else on the page is sized from it. (Zoom scales the whole
+    /// page, text included.)
+    static let bodySize: CGFloat = 17
     /// Line height as a multiple of the font size.
     static let bodyLineHeight: CGFloat = 1.68
     /// Source view and code: the size and line height of JetBrains Mono.
-    static var sourceSize: CGFloat { 14 * Preferences.textScale }
+    static let sourceSize: CGFloat = 14
     static let sourceLineHeight: CGFloat = 1.75
 
     // MARK: Spacing

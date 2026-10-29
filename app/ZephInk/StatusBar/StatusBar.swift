@@ -12,6 +12,8 @@ struct StatusBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            ZoomControl()
+            Rectangle().fill(Color(nsColor: Theme.chromeLine)).frame(width: 1, height: 14)
             Button { isEditingGoal = true } label: {
                 HStack(spacing: 6) {
                     if let goal = stats.goal {
@@ -80,6 +82,51 @@ struct StatusBar: View {
 
     private var saveColor: Color {
         document.isEdited || document.fileURL == nil ? Color(nsColor: .systemOrange) : Color(nsColor: .systemGreen)
+    }
+}
+
+/// Word-style zoom: − and + buttons, a slider, and the percentage, which opens a menu of steps and
+/// Fit Page Width. Every page in every window follows it.
+private struct ZoomControl: View {
+    @AppStorage(Preferences.Key.zoom) private var zoom = 1.0
+
+    private var current: Double { min(max(zoom > 0 ? zoom : 1, Double(Preferences.minZoom)), Double(Preferences.maxZoom)) }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button { Preferences.setZoom(Zoom.step(from: current, up: false)) } label: {
+                Image(systemName: "minus").font(.system(size: 9, weight: .semibold)).frame(width: 16, height: 16).contentShape(Rectangle())
+            }
+            .help("Zoom out — ⌘−")
+            .accessibilityLabel("Zoom out")
+            Slider(value: Binding(get: { current }, set: { Preferences.setZoom($0) }),
+                   in: Double(Preferences.minZoom)...Double(Preferences.maxZoom))
+                .controlSize(.mini)
+                .frame(width: 84)
+                .accessibilityLabel("Zoom")
+                .accessibilityValue("\(Int((current * 100).rounded())) percent")
+            Button { Preferences.setZoom(Zoom.step(from: current, up: true)) } label: {
+                Image(systemName: "plus").font(.system(size: 9, weight: .semibold)).frame(width: 16, height: 16).contentShape(Rectangle())
+            }
+            .help("Zoom in — ⌘+")
+            .accessibilityLabel("Zoom in")
+            Menu {
+                ForEach(Zoom.steps, id: \.self) { step in
+                    Button("\(Int((step * 100).rounded()))%") { Preferences.setZoom(step) }
+                }
+                Divider()
+                Button("Fit Page Width") {
+                    NSApp.sendAction(#selector(WorkspaceWindowController.zoomToFitPage(_:)), to: nil, from: nil)
+                }
+            } label: {
+                Text("\(Int((current * 100).rounded()))%").frame(minWidth: 36, alignment: .leading)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Zoom")
+        }
+        .buttonStyle(.plain)
     }
 }
 

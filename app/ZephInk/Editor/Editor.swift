@@ -188,6 +188,12 @@ final class Editor: NSObject {
         textView.autoresizingMask = .width
 
         scrollView.documentView = textView
+        scrollView.allowsMagnification = true
+        scrollView.minMagnification = Preferences.minZoom
+        scrollView.maxMagnification = Preferences.maxZoom
+        scrollView.magnification = Preferences.zoom
+        NotificationCenter.default.addObserver(self, selector: #selector(pinchDidEnd),
+                                               name: NSScrollView.didEndLiveMagnifyNotification, object: scrollView)
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = true
         scrollView.backgroundColor = Theme.desk
@@ -196,6 +202,10 @@ final class Editor: NSObject {
         scrollView.contentView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(clipViewDidResize),
                                                name: NSView.frameDidChangeNotification, object: scrollView.contentView)
+        // Zoom changes the clip view's bounds, not its frame: keep the text view as wide as what's shown.
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(clipViewDidChangeBounds),
+                                               name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
         NotificationCenter.default.addObserver(self, selector: #selector(preferencesDidChange),
                                                name: UserDefaults.didChangeNotification, object: nil)
         appliedLook = Look.current
@@ -335,13 +345,13 @@ final class Editor: NSObject {
         var typewriter: Bool
         var theme: Preferences.Theme
         var whitePage: Bool
-        var textScale: CGFloat
+        var zoom: CGFloat
         var contrast: Bool
 
         static var current: Look {
             Look(accent: Preferences.accent, margins: Preferences.margins, symbols: MarkdownSymbols.current,
                  page: PageGeometry.current(viewWidth: 1000), focus: Preferences.focusMode, typewriter: Preferences.typewriterMode,
-                 theme: Preferences.theme, whitePage: Preferences.whitePage, textScale: Preferences.textScale,
+                 theme: Preferences.theme, whitePage: Preferences.whitePage, zoom: Preferences.zoom,
                  contrast: Preferences.increaseContrast)
         }
     }
@@ -356,9 +366,10 @@ final class Editor: NSObject {
         appliedLook = look
         if look.margins != old?.margins || look.page != old?.page { textView.pageMetricsDidChange() }
         if look.focus != old?.focus || look.accent != old?.accent { focusedLines = nil; updateFocus() }
+        if look.zoom != old?.zoom { applyZoom() }
         if look.typewriter != old?.typewriter { updateTypewriterSpace(); centerCursorIfTypewriter() }
         if look.accent != old?.accent || look.symbols != old?.symbols || look.theme != old?.theme || look.whitePage != old?.whitePage
-            || look.textScale != old?.textScale || look.contrast != old?.contrast {
+            || look.contrast != old?.contrast {
             textView.insertionPointColor = Theme.pageAccent
             textView.selectedTextAttributes = [.backgroundColor: Theme.pageAccent.withAlphaComponent(0.2)]
             // Restyling sets every color again, which makes TextKit draw the text afresh in the new theme.
@@ -370,8 +381,32 @@ final class Editor: NSObject {
 
 
     @objc private func clipViewDidResize() {
+        clipViewDidChangeBounds()
         textView.visibleHeightDidChange()
         updateTypewriterSpace()
+    }
+
+    @objc private func clipViewDidChangeBounds() {
+        let width = scrollView.contentView.bounds.width
+        guard abs(textView.frame.width - width) > 0.5 else { return }
+        textView.setFrameSize(NSSize(width: width, height: textView.frame.height))
+        textView.visibleHeightDidChange()
+    }
+
+    // MARK: - Zoom
+
+    /// Shows the page at the zoom setting, keeping the middle of what's on screen in place. The text
+    /// view's width (in page points) changes with it, so the page is laid out for the new size.
+    private func applyZoom() {
+        let zoom = Preferences.zoom
+        guard abs(scrollView.magnification - zoom) > 0.001 else { return }
+        let clip = scrollView.contentView.bounds
+        scrollView.setMagnification(zoom, centeredAt: NSPoint(x: clip.midX, y: clip.midY))
+    }
+
+    /// A pinch on the trackpad sets the zoom for every page, like the zoom control.
+    @objc private func pinchDidEnd() {
+        Preferences.setZoom(scrollView.magnification)
     }
 
     // MARK: - Focus and typewriter modes

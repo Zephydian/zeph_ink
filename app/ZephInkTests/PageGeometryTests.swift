@@ -54,3 +54,22 @@ struct PageGeometryTests {
         #expect(page.pageSize.height == letter.height)
     }
 }
+
+/// Zoom steps and Fit Page Width.
+@MainActor
+struct ZoomTests {
+    @Test func zoomMovesThroughSteps() {
+        #expect(Zoom.step(from: 1, up: true) == 1.1)
+        #expect(Zoom.step(from: 1, up: false) == 0.9)
+        #expect(Zoom.step(from: 1.33, up: true) == 1.5)    // from between steps, after a pinch
+        #expect(Zoom.step(from: 3, up: true) == 3)
+        #expect(Zoom.step(from: 0.5, up: false) == 0.5)
+    }
+
+    @Test func fitPageWidthFillsTheView() {
+        // A 720-point page with 28 points of desk either side, in a 2,000-point-wide pane.
+        let zoom = Zoom.fitting(pageWidth: 720, desk: 28, in: 2000)
+        #expect(abs(zoom * (720 + 56) - 2000) < 1)
+        #expect(Zoom.fitting(pageWidth: 720, desk: 28, in: 100_000) == Preferences.maxZoom)
+    }
+}

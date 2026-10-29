@@ -168,6 +168,13 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         workspace.focusPane(offset: -1)
     }
 
+    /// View → Fit Page Width: zooms so the page (with a little desk around it) fills the focused pane.
+    @objc func zoomToFitPage(_ sender: Any?) {
+        guard let editor = workspace.selectedTab?.editor else { return }
+        let page = PageGeometry.current(viewWidth: 100_000).pageSize.width
+        Preferences.setZoom(Zoom.fitting(pageWidth: page, desk: Theme.deskMargin.width, in: editor.scrollView.frame.width))
+    }
+
     /// File → Quick Open (⌘⇧O).
     @objc func quickOpen(_ sender: Any?) {
         if let window { QuickOpen.show(in: window) }
