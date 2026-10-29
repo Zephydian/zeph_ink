@@ -55,6 +55,17 @@ struct SpellingTests {
         #expect(editor.textView(editor.textView, shouldSetSpellingState: flag, range: NSRange(location: 19, length: 5)) == 0)
     }
 
+    /// A system-wide default can stop every text view checking as you type (it did on the owner's Mac,
+    /// so Zeph#Ink never underlined anything). Zeph#Ink's own setting must win.
+    @Test func checkingWhileTypingIsOnInTheEditor() throws {
+        let previous = UserDefaults.standard.object(forKey: Preferences.Key.checksSpelling)
+        defer { UserDefaults.standard.set(previous, forKey: Preferences.Key.checksSpelling) }
+        UserDefaults.standard.removeObject(forKey: Preferences.Key.checksSpelling)
+        let document = MarkdownDocument()
+        try document.read(from: Data("Hello".utf8), ofType: "net.daringfireball.markdown")
+        #expect(Editor(document: document).textView.isContinuousSpellCheckingEnabled)
+    }
+
     @Test func appKitFindsTheEditorsSpellingMethods() throws {
         let document = MarkdownDocument()
         let editor = Editor(document: document)

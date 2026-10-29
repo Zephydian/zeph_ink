@@ -222,6 +222,7 @@ The text view's own spell checking (`NSSpellChecker`) does the work: red underli
 - The editor, as the text view's delegate, filters macOS's results before they're applied (`textView(_:didCheckTextIn:…)`), which covers autocorrection too, and vetoes any underline outside writing (`textView(_:shouldSetSpellingState:range:)`).
 - Edit → Spelling and Grammar → Check Document Now (⌘;) is `ZephTextView.checkSpelling`: it asks the checker for the next misspelled word and skips the ones `Spelling` rules out.
 - Check Spelling While Typing is one setting for every document (`checksSpelling`, on by default). `.txt` files aren't checked.
+- A system-wide default, `NSAllowContinuousSpellChecking`, makes every text view ignore checking as you type when it's off (it is on some Macs). `AppDelegate` sets it on in Zeph#Ink's own defaults at launch, so Zeph#Ink's setting decides; other apps keep the system's.
 
 ## PDF export, printing and Copy as Rich Text
 

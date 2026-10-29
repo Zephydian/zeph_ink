@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Reopens the windows, tabs and splits that were open last time, before any file the app was
     /// asked to open joins them.
     func applicationWillFinishLaunching(_ notification: Notification) {
+        allowSpellCheckingWhileTyping()
         followAccessibilitySettings()
         applyTheme()
         // Settings can change on any thread (macOS and other frameworks change some of their own), so
@@ -37,6 +38,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Help → Markdown Guide.
     @objc func showMarkdownGuide(_ sender: Any?) { MarkdownGuideWindowController.show() }
+
+    /// A system-wide default (`NSAllowContinuousSpellChecking`, off on some Macs) makes every text view
+    /// ignore Check Spelling While Typing. Zeph#Ink's own setting (Edit → Spelling and Grammar) decides
+    /// here, so it's allowed in Zeph#Ink's defaults; other apps keep the system's.
+    private func allowSpellCheckingWhileTyping() {
+        UserDefaults.standard.set(true, forKey: "NSAllowContinuousSpellChecking")
+    }
 
     /// Increase Contrast: faded markdown symbols get darker. Editors restyle when told a setting changed.
     @objc private func followAccessibilitySettings() {
