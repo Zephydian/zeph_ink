@@ -22,6 +22,15 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         all.first { $0.window?.isKeyWindow == true } ?? all.first { $0.window?.isMainWindow == true } ?? all.first ?? makeNew()
     }
 
+    /// Brings a workspace window forward to write in (opening a new document if there's none).
+    static func bringForward() {
+        if let controller = all.first(where: { $0.window?.isMainWindow == true }) ?? all.first {
+            controller.window?.makeKeyAndOrderFront(nil)
+        } else {
+            NSDocumentController.shared.newDocument(nil)
+        }
+    }
+
     /// A new, empty workspace window, placed a little below and right of the frontmost one.
     static func makeNew() -> WorkspaceWindowController {
         let controller = WorkspaceWindowController()
@@ -233,6 +242,17 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
         document.close()
     }
 
+    /// Help → Markdown Cheat Sheet (⌘?): under the toolbar's ? button, or at the top of the page
+    /// when the toolbar is hidden.
+    @objc func showCheatSheet(_ sender: Any?) {
+        guard let editor = workspace.selectedTab?.editor else { return }
+        if Toolbar.isShown, !Preferences.focusMode {
+            workspace.showsCheatSheet.toggle()
+        } else {
+            CheatSheet.show(over: editor.textView)
+        }
+    }
+
     /// File → Export as PDF… (⌘⇧E): the selected tab's document.
     @objc func exportAsPDF(_ sender: Any?) {
         guard let document = workspace.selectedTab?.document, let window else { return }
@@ -257,7 +277,7 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate, NSM
             return true
         case #selector(convertToMarkdown(_:)):
             return selected?.document.isPlainText == true && selected?.document.fileURL != nil
-        case #selector(exportAsPDF(_:)):
+        case #selector(exportAsPDF(_:)), #selector(showCheatSheet(_:)):
             return selected != nil
         default:
             return true

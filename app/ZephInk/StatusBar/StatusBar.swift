@@ -39,6 +39,11 @@ struct StatusBar: View {
             }
             .accessibilityElement(children: .combine)
 
+            if let shown = Tips.shared.current, shown.document == ObjectIdentifier(document) {
+                TipView(tip: shown.tip)
+                    .transition(.opacity)
+            }
+
             Spacer(minLength: 8)
 
             ZoomControl()
@@ -61,6 +66,8 @@ struct StatusBar: View {
         .padding(.trailing, 8)
         .frame(height: 32)
         .background(Color(nsColor: Theme.chrome))
+        .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.25),
+                   value: Tips.shared.current)
     }
 
     private var countText: String {
@@ -86,6 +93,27 @@ struct StatusBar: View {
     private var saveColor: Color {
         document.fileURL == nil ? Color(nsColor: .systemOrange)
             : document.isEdited ? Color(nsColor: Theme.chromeInkSecondary) : Color(nsColor: .systemGreen)
+    }
+}
+
+/// A learning tip: the words, with the markdown in code type. Clicking it puts it away.
+private struct TipView: View {
+    let tip: Tip
+
+    var body: some View {
+        let parts = tip.parts
+        HStack(spacing: 5) {
+            Image(systemName: "lightbulb").foregroundStyle(Color(nsColor: Theme.accent))
+            (Text(parts.before) + Text(parts.syntax).font(Font(Fonts.monoAsTyped(size: 11.5))).foregroundColor(Color(nsColor: Theme.chromeInk))
+                + Text(parts.after))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { Tips.shared.dismiss() }
+        .help(tip.text + " Click to hide. Settings → Markdown tips turns tips off.")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(tip.text)
     }
 }
 

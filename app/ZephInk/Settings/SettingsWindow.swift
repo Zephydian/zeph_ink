@@ -32,6 +32,7 @@ private struct SettingsView: View {
     @AppStorage(Preferences.Key.pageStyle) private var pageStyle = Preferences.PageStyle.continuous.rawValue
     @AppStorage(Preferences.Key.paperSize) private var paperSize = Preferences.PaperSize.automatic.rawValue
     @AppStorage(Preferences.Key.pageNumbers) private var pageNumbers = true
+    @AppStorage(Preferences.Key.showsTips) private var showsTips = true
 
     var body: some View {
         Form {
@@ -93,6 +94,8 @@ private struct SettingsView: View {
                      ? "Symbols like ** and ## hide, except on the line you're editing."
                      : "Symbols like ** and ## always show, dimmed.")
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle("Markdown tips", isOn: $showsTips)
+                    .help("After you use a button or shortcut, the status bar shows what you could type instead. Each tip shows three times.")
                 Picker("New documents", selection: $defaultType) {
                     ForEach(Preferences.DocumentType.allCases) { Text($0.title).tag($0.rawValue) }
                 }

@@ -14,6 +14,9 @@ enum MainMenu {
         menu.addItem(submenu(window))
         NSApp.windowsMenu = window
         let help = NSMenu(title: "Help")
+        help.addItem(item("Welcome to Zeph#Ink", #selector(AppDelegate.showWelcome(_:))))
+        help.addItem(item("Markdown Guide", #selector(AppDelegate.showMarkdownGuide(_:))))
+        help.addItem(item("Markdown Cheat Sheet", #selector(WorkspaceWindowController.showCheatSheet(_:)), "?"))
         menu.addItem(submenu(help))
         NSApp.helpMenu = help
         return menu
@@ -79,6 +82,17 @@ enum MainMenu {
         menu.addItem(item("Select All", #selector(NSText.selectAll(_:)), "a"))
         menu.addItem(.separator())
         menu.addItem(submenu(findMenu()))
+        menu.addItem(submenu(spellingMenu()))
+        return menu
+    }
+
+    /// macOS's spell checker, which skips code, addresses and markdown symbols (`Spelling`).
+    private static func spellingMenu() -> NSMenu {
+        let menu = NSMenu(title: "Spelling and Grammar")
+        menu.addItem(item("Show Spelling and Grammar", #selector(NSText.showGuessPanel(_:)), ":"))
+        menu.addItem(item("Check Document Now", #selector(NSText.checkSpelling(_:)), ";"))
+        menu.addItem(.separator())
+        menu.addItem(item("Check Spelling While Typing", #selector(NSTextView.toggleContinuousSpellChecking(_:))))
         return menu
     }
 

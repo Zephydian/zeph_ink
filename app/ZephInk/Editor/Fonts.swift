@@ -23,6 +23,17 @@ enum Fonts {
             ?? .monospacedSystemFont(ofSize: size, weight: weight >= 600 ? .bold : .regular)
     }
 
+    /// JetBrains Mono without its code ligatures, so `==`, `~~` and `---` show as the characters you
+    /// type (for the cheat sheet and tips, which teach exactly that).
+    static func monoAsTyped(size: CGFloat) -> NSFont {
+        let font = mono(size: size)
+        let descriptor = font.fontDescriptor.addingAttributes([.featureSettings: [
+            [NSFontDescriptor.FeatureKey.typeIdentifier: kContextualAlternatesType,
+             NSFontDescriptor.FeatureKey.selectorIdentifier: kContextualAlternatesOffSelector],
+        ]])
+        return NSFont(descriptor: descriptor, size: size) ?? font
+    }
+
     /// The app's interface font (SF), used on the page only for small headings.
     static func ui(size: CGFloat, weight: NSFont.Weight = .regular, smallCaps: Bool = false) -> NSFont {
         let font = NSFont.systemFont(ofSize: size, weight: weight)

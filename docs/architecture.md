@@ -207,6 +207,23 @@ Zoom is the scroll view's magnification (`allowsMagnification`), from 50% to 300
 
 `RichPaste` turns the clipboard's HTML (or RTF, through HTML) into markdown by walking the tidied HTML: headings, bold, italic, strikethrough (including Google Docs' styled spans), code, links, lists, quotes, code blocks and dividers. When it finds nothing markdown can keep (a code editor's colored spans), the plain text is pasted instead. ⌘⇧V always pastes plain text.
 
+## Learning mode
+
+- **Tips** (`Learning/Tips.swift`). Each formatting action in `ZephTextView+Formatting` checks whether its style was off before it ran; if it was (the style was turned on, not off), it offers that style's `Tip`. `Tips.shared` (`@Observable`) holds the tip on show and the document it's for, and the status bar of the window showing that document displays it for seven seconds, or until it's clicked. Each tip shows three times, counted in the defaults (`tipsShown`), and Settings → Writing → Markdown tips (`showsTips`) turns them off. A tip already on screen doesn't count again.
+- **Cheat sheet** (`Learning/CheatSheet.swift`). The toolbar's ? button shows it as a popover (`Workspace.showsCheatSheet`). Help → Markdown Cheat Sheet (⌘?) toggles that popover, or, when the toolbar is hidden (or in focus mode), shows it at the top of the page. A test checks its shortcuts against the Format menu.
+- **Welcome** (`Learning/Welcome.swift`). A window of its own, shown once (`hasSeenWelcome`) from `applicationDidFinishLaunching`, never while tests run. It remembers the version it was shown for (`welcomedVersion`, the first two numbers); when that changes and `WhatsNew.notes` has lines for the new version, it shows again with them in place of the introduction. Learn Markdown opens the guide; Start Writing brings a workspace window forward (`WorkspaceWindowController.bringForward`).
+- **Markdown guide** (`Learning/MarkdownGuide.swift`). A window with the lessons in a sidebar. Each lesson's example is in two boxes: an editable plain text view on the left, and a `MarkdownPreview` on the right, which styles the text with `MarkdownStyler` in Clean mode with no lines revealed (and `PageLayoutFragment` for bullets and checkboxes), so it looks like the page. It styles inside `Theme.withBodySize(13)`, a per-thread override of the body text size, so the examples stay small whatever the setting. Try in a New Document opens an untitled document holding the example, marked as changed so it's kept.
+- The markdown in tips and the cheat sheet uses `Fonts.monoAsTyped`: JetBrains Mono with its code ligatures off, so `==` and `~~` look like what you type.
+
+## Spelling
+
+The text view's own spell checking (`NSSpellChecker`) does the work: red underlines, suggestions, Ignore and Learn Spelling in the right-click menu, the spelling panel. It doesn't know markdown, so `Spelling.allows` decides, for each word it flags, whether that's writing. It isn't when it's in a code block, inline code, front matter or an alignment tag line, touches a block symbol, list marker or inline symbol (`**`, `](address)`), or falls in a link or image address, a link definition, a bare web or email address, or an HTML tag.
+
+- The editor, as the text view's delegate, filters macOS's results before they're applied (`textView(_:didCheckTextIn:…)`), which covers autocorrection too, and vetoes any underline outside writing (`textView(_:shouldSetSpellingState:range:)`).
+- Edit → Spelling and Grammar → Check Document Now (⌘;) is `ZephTextView.checkSpelling`: it asks the checker for the next misspelled word and skips the ones `Spelling` rules out.
+- Check Spelling While Typing is one setting for every document (`checksSpelling`, on by default). `.txt` files aren't checked.
+- A system-wide default, `NSAllowContinuousSpellChecking`, makes every text view ignore checking as you type when it's off (it is on some Macs). `AppDelegate` sets it on in Zeph#Ink's own defaults at launch, so Zeph#Ink's setting decides; other apps keep the system's.
+
 ## PDF export, printing and Copy as Rich Text
 
 `PrintLayout` (`Export/`) lays a document out on paper. It copies the text into its own `NSTextStorage` and TextKit 2 layout, so the open editor is never touched, and styles it with `MarkdownStyler` in Clean mode with no lines revealed, so every symbol hides. Page size and margins come from `PageGeometry` for the Paper page style, so screen and paper agree.

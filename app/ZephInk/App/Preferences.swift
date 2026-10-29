@@ -20,6 +20,8 @@ nonisolated enum Preferences {
         static let zoom = "zoom"
         static let textSize = "textSize"
         static let pageNumbers = "pdfPageNumbers"
+        static let showsTips = "showsTips"
+        static let checksSpelling = "checksSpelling"
     }
 
     /// How the page looks: one page that grows, or separate pages with breaks between them.
@@ -188,6 +190,13 @@ nonisolated enum Preferences {
 
     /// Numbers at the foot of exported PDF pages (on unless turned off).
     static var pageNumbers: Bool { UserDefaults.standard.object(forKey: Key.pageNumbers) as? Bool ?? true }
+
+    /// Learning mode: after a style is applied with a button or shortcut, the status bar shows the
+    /// markdown for it (on unless turned off).
+    static var showsTips: Bool { UserDefaults.standard.object(forKey: Key.showsTips) as? Bool ?? true }
+
+    /// Red underlines on misspelled words as you type (Edit → Spelling and Grammar), on unless turned off.
+    static var checksSpelling: Bool { UserDefaults.standard.object(forKey: Key.checksSpelling) as? Bool ?? true }
 
     /// Dims everything but the paragraph you're writing, and hides the toolbar.
     static var focusMode: Bool { UserDefaults.standard.bool(forKey: Key.focusMode) }
