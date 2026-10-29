@@ -8,6 +8,7 @@ enum MainMenu {
         menu.addItem(submenu(appMenu()))
         menu.addItem(submenu(fileMenu()))
         menu.addItem(submenu(editMenu()))
+        menu.addItem(submenu(formatMenu()))
         menu.addItem(submenu(viewMenu()))
         let window = windowMenu()
         menu.addItem(submenu(window))
@@ -21,6 +22,8 @@ enum MainMenu {
     private static func appMenu() -> NSMenu {
         let menu = NSMenu(title: "Zeph#Ink")
         menu.addItem(item("About Zeph#Ink", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Settings…", #selector(AppDelegate.showSettings(_:)), ","))
         menu.addItem(.separator())
         let services = NSMenu(title: "Services")
         menu.addItem(submenu(services))
@@ -39,6 +42,7 @@ enum MainMenu {
         menu.addItem(item("New", #selector(NSDocumentController.newDocument(_:)), "n"))
         menu.addItem(item("New Tab", #selector(NSDocumentController.newDocument(_:)), "t"))
         menu.addItem(item("Open…", #selector(NSDocumentController.openDocument(_:)), "o"))
+        menu.addItem(item("Quick Open…", #selector(WorkspaceWindowController.quickOpen(_:)), "o", [.command, .shift]))
         // AppKit fills in this submenu because it holds the Clear Menu item.
         let recent = NSMenu(title: "Open Recent")
         recent.addItem(item("Clear Menu", #selector(NSDocumentController.clearRecentDocuments(_:))))
@@ -52,6 +56,8 @@ enum MainMenu {
         menu.addItem(item("Move To…", #selector(NSDocument.move(_:))))
         menu.addItem(item("Revert to Saved", #selector(NSDocument.revertToSaved(_:))))
         menu.addItem(item("Browse All Versions…", #selector(NSDocument.browseVersions(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Convert to Markdown", #selector(WorkspaceWindowController.convertToMarkdown(_:))))
         return menu
     }
 
@@ -63,6 +69,7 @@ enum MainMenu {
         menu.addItem(item("Cut", #selector(NSText.cut(_:)), "x"))
         menu.addItem(item("Copy", #selector(NSText.copy(_:)), "c"))
         menu.addItem(item("Paste", #selector(NSText.paste(_:)), "v"))
+        menu.addItem(item("Paste as Plain Text", #selector(NSTextView.pasteAsPlainText(_:)), "v", [.command, .shift]))
         menu.addItem(item("Delete", #selector(NSText.delete(_:))))
         menu.addItem(item("Select All", #selector(NSText.selectAll(_:)), "a"))
         menu.addItem(.separator())
@@ -78,18 +85,96 @@ enum MainMenu {
             ("Find and Replace…", .showReplaceInterface, "f", [.command, .option]),
             ("Find Next", .nextMatch, "g", [.command]),
             ("Find Previous", .previousMatch, "g", [.command, .shift]),
-            ("Use Selection for Find", .setSearchString, "e", [.command]),
+            ("Use Selection for Find", .setSearchString, "", [.command]),   // ⌘E is Inline Code
         ]
         for (title, action, key, modifiers) in actions {
             let entry = item(title, #selector(NSTextView.performTextFinderAction(_:)), key, modifiers)
             entry.tag = action.rawValue
             menu.addItem(entry)
         }
+        menu.addItem(.separator())
+        menu.addItem(item("Find in All Documents…", #selector(WorkspaceWindowController.findInAllDocuments(_:)), "f", [.command, .option, .shift]))
+        return menu
+    }
+
+    /// Every formatting action, with the shortcuts the toolbar's tooltips show. They act on the text
+    /// view that has the focus.
+    private static func formatMenu() -> NSMenu {
+        let menu = NSMenu(title: "Format")
+        let shiftCommand: NSEvent.ModifierFlags = [.command, .shift]
+        menu.addItem(item("Title", #selector(ZephTextView.setTitleStyle(_:)), "1"))
+        menu.addItem(item("Heading", #selector(ZephTextView.setHeadingStyle(_:)), "2"))
+        menu.addItem(item("Subheading", #selector(ZephTextView.setSubheadingStyle(_:)), "3"))
+        menu.addItem(item("Small Heading", #selector(ZephTextView.setSmallHeadingStyle(_:)), "4"))
+        menu.addItem(item("Body", #selector(ZephTextView.setBodyStyle(_:)), "0"))
+        menu.addItem(item("Quote", #selector(ZephTextView.toggleQuote(_:)), ".", shiftCommand))
+        menu.addItem(item("Code Block", #selector(ZephTextView.toggleCodeBlock(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Align Left", #selector(NSText.alignLeft(_:)), "{"))
+        menu.addItem(item("Center", #selector(NSText.alignCenter(_:)), "|"))
+        menu.addItem(item("Align Right", #selector(NSText.alignRight(_:)), "}"))
+        menu.addItem(.separator())
+        menu.addItem(item("Bold", #selector(ZephTextView.toggleBold(_:)), "b"))
+        menu.addItem(item("Italic", #selector(ZephTextView.toggleItalic(_:)), "i"))
+        menu.addItem(item("Strikethrough", #selector(ZephTextView.toggleStrikethrough(_:)), "x", shiftCommand))
+        menu.addItem(item("Highlight", #selector(ZephTextView.toggleHighlight(_:)), "h", shiftCommand))
+        menu.addItem(item("Inline Code", #selector(ZephTextView.toggleInlineCode(_:)), "e"))
+        menu.addItem(item("Link…", #selector(ZephTextView.editLink(_:)), "k"))
+        menu.addItem(item("Clear Formatting", #selector(ZephTextView.clearFormatting(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Bigger Text", #selector(WorkspaceWindowController.makeTextBigger(_:)), ">", [.command, .option]))
+        menu.addItem(item("Smaller Text", #selector(WorkspaceWindowController.makeTextSmaller(_:)), "<", [.command, .option]))
+        menu.addItem(.separator())
+        menu.addItem(item("Bulleted List", #selector(ZephTextView.toggleBulletedList(_:)), "8", shiftCommand))
+        menu.addItem(item("Numbered List", #selector(ZephTextView.toggleNumberedList(_:)), "7", shiftCommand))
+        menu.addItem(item("Checklist", #selector(ZephTextView.toggleChecklist(_:)), "9", shiftCommand))
+        menu.addItem(item("Divider", #selector(ZephTextView.insertDivider(_:))))
+        menu.addItem(item("Image…", #selector(ZephTextView.insertImage(_:))))
         return menu
     }
 
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
+        menu.addItem(item("Hide Toolbar", #selector(AppDelegate.toggleToolbar(_:)), "t", [.command, .option]))
+        menu.addItem(item("Show Outline", #selector(WorkspaceWindowController.toggleOutline(_:)), "o", [.command, .option]))
+        menu.addItem(item("Zoom In", #selector(AppDelegate.zoomIn(_:)), "+"))
+        menu.addItem(item("Zoom Out", #selector(AppDelegate.zoomOut(_:)), "-"))
+        menu.addItem(item("Actual Size", #selector(AppDelegate.zoomToActualSize(_:)), "0", [.command, .option]))
+        menu.addItem(item("Fit Page Width", #selector(WorkspaceWindowController.zoomToFitPage(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Focus Mode", #selector(AppDelegate.toggleFocusMode(_:)), "f", [.command, .shift]))
+        menu.addItem(item("Typewriter Mode", #selector(AppDelegate.toggleTypewriterMode(_:))))
+        menu.addItem(item("Show Markdown Source", #selector(WorkspaceWindowController.toggleSourceView(_:)), "/"))
+        let symbols = NSMenu(title: "Markdown Symbols")
+        for (title, value) in [("Clean", MarkdownSymbols.clean), ("Faded", MarkdownSymbols.faded)] {
+            let entry = item(title, #selector(AppDelegate.setMarkdownSymbols(_:)))
+            entry.representedObject = value.rawValue
+            symbols.addItem(entry)
+        }
+        menu.addItem(submenu(symbols))
+        let margins = NSMenu(title: "Margins")
+        for value in Preferences.Margins.allCases {
+            let entry = item(value.title, #selector(AppDelegate.setMargins(_:)))
+            entry.representedObject = value.rawValue
+            margins.addItem(entry)
+        }
+        menu.addItem(submenu(margins))
+        let pages = NSMenu(title: "Page Style")
+        for style in Preferences.PageStyle.allCases {
+            let entry = item(style.title, #selector(AppDelegate.setPageStyle(_:)))
+            entry.representedObject = style.rawValue
+            pages.addItem(entry)
+        }
+        menu.addItem(submenu(pages))
+        menu.addItem(.separator())
+        menu.addItem(item("Split Right", #selector(WorkspaceWindowController.splitRight(_:)), "\\"))
+        menu.addItem(item("Close Split", #selector(WorkspaceWindowController.closeSplit(_:))))
+        menu.addItem(item("Synced Scrolling", #selector(AppDelegate.toggleSyncedScrolling(_:))))
+        menu.addItem(item("Focus Left Pane", #selector(WorkspaceWindowController.focusPreviousPane(_:)),
+                          String(UnicodeScalar(NSLeftArrowFunctionKey)!), [.command, .option]))
+        menu.addItem(item("Focus Right Pane", #selector(WorkspaceWindowController.focusNextPane(_:)),
+                          String(UnicodeScalar(NSRightArrowFunctionKey)!), [.command, .option]))
+        menu.addItem(.separator())
         menu.addItem(item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]))
         return menu
     }
